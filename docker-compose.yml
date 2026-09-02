@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: ai-career-agent-postgres
+    environment:
+      POSTGRES_USER: career_agent
+      POSTGRES_PASSWORD: career_agent_password
+      POSTGRES_DB: career_agent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
