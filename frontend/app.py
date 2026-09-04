@@ -5,11 +5,36 @@ st.title("AI Career Agent")
 
 st.write("Your personal AI-powered career assistant.")
 
-if st.button("Test Backend"):
-    response = requests.get("http://127.0.0.1:8000/")
+st.header("Upload your CV")
 
-    if response.status_code == 200:
-        data = response.json()
-        st.success(data["message"])
-    else:
-        st.error("Could not connect to backend.")
+uploaded_file = st.file_uploader(
+    "Choose your CV",
+    type=["pdf", "docx"]
+)
+
+if uploaded_file is not None:
+
+    st.write(f"Selected file: **{uploaded_file.name}**")
+
+    if st.button("Upload CV"):
+        files = {
+            "file": (
+                uploaded_file.name,
+                uploaded_file.getvalue(),
+                uploaded_file.type
+            )
+        }
+
+        response = requests.post(
+            "http://127.0.0.1:8000/upload-cv",
+            files=files
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            st.success(data["message"])
+            st.write(f"Filename: {data['filename']}")
+            st.write(f"File type: {data['content_type']}")
+
+        else:
+            st.error("Something went wrong when uploading the CV.")
