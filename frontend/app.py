@@ -1,9 +1,15 @@
 import requests
 import streamlit as st
 
+
+API_URL = "http://127.0.0.1:8000"
+
+
 st.title("AI Career Agent")
 
-st.write("Your personal AI-powered career assistant.")
+st.write(
+    "Upload your CV and let AI create a structured candidate profile."
+)
 
 st.header("Upload your CV")
 
@@ -12,11 +18,12 @@ uploaded_file = st.file_uploader(
     type=["pdf", "docx"],
 )
 
+
 if uploaded_file is not None:
 
     st.write(f"Selected file: **{uploaded_file.name}**")
 
-    if st.button("Process CV"):
+    if st.button("Analyze CV"):
 
         files = {
             "file": (
@@ -28,37 +35,74 @@ if uploaded_file is not None:
 
         try:
             response = requests.post(
-                "http://127.0.0.1:8000/upload-cv",
+                f"{API_URL}/upload-cv",
                 files=files,
-                timeout=30,
+                timeout=120,
             )
 
             if response.status_code == 200:
 
-                data = response.json()
+                profile = response.json()
 
-                st.success(data["message"])
+                st.success("CV analyzed successfully!")
 
-                st.subheader("Extracted CV text")
+                st.header(profile["name"])
 
-                st.text_area(
-                    "CV text",
-                    data["text"],
-                    height=500,
-                )
+                st.subheader("Summary")
+                st.write(profile["summary"])
+
+                st.subheader("Skills")
+
+                for skill in profile["skills"]:
+                    st.write(f"• {skill}")
+
+                st.subheader("Experience")
+
+                for experience in profile["experience"]:
+                    st.write(
+                        f"### {experience['role']} — "
+                        f"{experience['company']}"
+                    )
+                    st.write(experience["description"])
+
+                st.subheader("Education")
+
+                for education in profile["education"]:
+                    st.write(
+                        f"### {education['degree']} — "
+                        f"{education['institution']}"
+                    )
+                    st.write(education["description"])
+
+                st.subheader("Projects")
+
+                for project in profile["projects"]:
+                    st.write(f"### {project['name']}")
+                    st.write(project["description"])
+
+                    if project["technologies"]:
+                        st.write(
+                            "Technologies: "
+                            + ", ".join(project["technologies"])
+                        )
+
+                st.subheader("Languages")
+
+                for language in profile["languages"]:
+                    st.write(f"• {language}")
 
             else:
 
-                error = response.json()
-
-                st.error(
-                    error.get(
+                try:
+                    error = response.json()
+                    message = error.get(
                         "detail",
-                        "Something went wrong.",
+                        "Something went wrong."
                     )
-                )
+                except ValueError:
+                    message = "Something went wrong."
 
-        except requests.RequestException:
-            st.error(
-                "Could not connect to the FastAPI backend."
-            )
+                st.error(message)
+
+        except requests.RequestException as error:
+            st.error(f"Could not connect to the backend: {error}")
