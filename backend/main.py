@@ -1,10 +1,9 @@
 from contextlib import asynccontextmanager
-
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
-
+from backend.database.models import CandidateProfileDB, JobDB
+from backend.schemas.job import JobCreate, JobResponse
 from backend.database.database import Base, engine, get_db
-from backend.database.models import CandidateProfileDB
 from backend.schemas.candidate import CandidateProfile
 from backend.services.candidate_profile import create_candidate_profile
 from backend.services.cv_parser import extract_cv_text
@@ -131,3 +130,29 @@ def get_candidate(
         projects=profile.projects,
         languages=profile.languages,
     )
+
+@app.post("/jobs", response_model=JobResponse)
+def create_job(
+    job: JobCreate,
+    db: Session = Depends(get_db),
+):
+    job_db = JobDB(
+        title=job.title,
+        company=job.company,
+        description=job.description,
+        url=job.url,
+    )
+
+    db.add(job_db)
+    db.commit()
+    db.refresh(job_db)
+
+    return job_db
+
+@app.get("/jobs", response_model=list[JobResponse])
+def get_jobs(
+    db: Session = Depends(get_db),
+):
+    return db.query(JobDB).order_by(
+        JobDB.created_at.desc()
+    ).all()
