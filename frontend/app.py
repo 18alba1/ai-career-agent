@@ -511,3 +511,104 @@ if st.button("Extract Requirements"):
         st.error(
             "Could not connect to the backend."
         )
+
+# ============================================================
+# JOB FIT ENGINE
+# ============================================================
+
+st.divider()
+
+st.header("Job Fit Analysis")
+
+fit_candidate_id = st.number_input(
+    "Candidate ID",
+    min_value=1,
+    value=1,
+    step=1,
+    key="fit_candidate_id",
+)
+
+fit_job_id = st.number_input(
+    "Job ID",
+    min_value=1,
+    value=1,
+    step=1,
+    key="fit_job_id",
+)
+
+
+if st.button("Calculate Job Fit"):
+
+    try:
+
+        response = requests.get(
+            f"{API_URL}/job-fit/"
+            f"{fit_candidate_id}/"
+            f"{fit_job_id}",
+            timeout=120,
+        )
+
+        if response.status_code == 200:
+
+            result = response.json()
+
+            st.success(
+                "Job fit analysis completed!"
+            )
+
+            st.metric(
+                "Overall Job Fit",
+                f"{result['overall_score']}%",
+            )
+
+            st.subheader(
+                "Requirement Analysis"
+            )
+
+            for match in result[
+                "requirement_matches"
+            ]:
+
+                if match["status"] == "strong":
+                    icon = "✅"
+
+                elif match["status"] == "partial":
+                    icon = "🟡"
+
+                else:
+                    icon = "❌"
+
+                st.write(
+                    f"{icon} "
+                    f"**{match['requirement']}** "
+                    f"— {match['importance']} "
+                    f"({match['similarity']:.0%})"
+                )
+
+                if match["evidence"]:
+                    st.caption(
+                        f"Evidence: {match['evidence']}"
+                    )
+
+        else:
+
+            try:
+                error = response.json()
+
+                message = error.get(
+                    "detail",
+                    "Could not calculate job fit.",
+                )
+
+            except ValueError:
+                message = (
+                    "Could not calculate job fit."
+                )
+
+            st.error(message)
+
+    except requests.RequestException:
+
+        st.error(
+            "Could not connect to the backend."
+        )

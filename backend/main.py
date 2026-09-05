@@ -14,6 +14,9 @@ from backend.services.job_matching import (
 )
 from backend.schemas.job_requirements import JobRequirements
 from backend.services.job_requirements import extract_job_requirements
+from backend.services.job_matching import (
+    calculate_job_fit,
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -268,3 +271,48 @@ def get_job_requirements(
     )
 
     return requirements
+
+@app.get(
+    "/job-fit/{candidate_id}/{job_id}"
+)
+def calculate_candidate_job_fit(
+    candidate_id: int,
+    job_id: int,
+    db: Session = Depends(get_db),
+):
+    candidate = db.get(
+        CandidateProfileDB,
+        candidate_id,
+    )
+
+    if candidate is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Candidate profile not found.",
+        )
+
+    job = db.get(
+        JobDB,
+        job_id,
+    )
+
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found.",
+        )
+
+    requirements = extract_job_requirements(
+        job.description
+    )
+
+    result = calculate_job_fit(
+        candidate=candidate,
+        requirements=requirements,
+    )
+
+    return {
+        "candidate_id": candidate.id,
+        "job_id": job.id,
+        **result,
+    }
