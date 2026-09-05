@@ -12,6 +12,8 @@ from backend.services.job_matching import calculate_skill_match
 from backend.services.job_matching import (
     calculate_semantic_match,
 )
+from backend.schemas.job_requirements import JobRequirements
+from backend.services.job_requirements import extract_job_requirements
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -241,3 +243,28 @@ def semantic_match_candidate_to_job(
         "candidate_id": candidate.id,
         **result,
     }
+
+@app.get(
+    "/job-requirements/{job_id}",
+    response_model=JobRequirements,
+)
+def get_job_requirements(
+    job_id: int,
+    db: Session = Depends(get_db),
+):
+    job = db.get(
+        JobDB,
+        job_id,
+    )
+
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found.",
+        )
+
+    requirements = extract_job_requirements(
+        job.description
+    )
+
+    return requirements

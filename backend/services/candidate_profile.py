@@ -1,10 +1,7 @@
 import ollama
-
 from backend.schemas.candidate import CandidateProfile
 
-
 MODEL_NAME = "llama3:latest"
-
 
 def create_candidate_profile(cv_text: str) -> CandidateProfile:
 

@@ -354,3 +354,160 @@ if st.button("Run Semantic Matching"):
         st.error(
             "Could not connect to the backend."
         )
+
+# ============================================================
+# JOB REQUIREMENTS SECTION
+# ============================================================
+
+st.divider()
+
+st.header("Extract Job Requirements")
+
+requirements_job_id = st.number_input(
+    "Job ID for requirement extraction",
+    min_value=1,
+    value=1,
+    step=1,
+)
+
+
+if st.button("Extract Requirements"):
+
+    try:
+
+        response = requests.get(
+            f"{API_URL}/job-requirements/"
+            f"{requirements_job_id}",
+            timeout=120,
+        )
+
+        if response.status_code == 200:
+
+            requirements = response.json()
+
+            st.success(
+                "Job requirements extracted successfully!"
+            )
+
+            st.subheader("Technical Skills")
+
+            for requirement in requirements[
+                "technical_skills"
+            ]:
+
+                importance = requirement["importance"]
+
+                if importance == "required":
+                    icon = "🔴"
+                    label = "Required"
+                else:
+                    icon = "🟡"
+                    label = "Preferred"
+
+                st.write(
+                    f"{icon} **{requirement['name']}** "
+                    f"— {label}"
+                )
+
+            st.subheader("Soft Skills")
+
+            for requirement in requirements[
+                "soft_skills"
+            ]:
+
+                importance = requirement["importance"]
+
+                if importance == "required":
+                    icon = "🔴"
+                    label = "Required"
+                else:
+                    icon = "🟡"
+                    label = "Preferred"
+
+                st.write(
+                    f"{icon} **{requirement['name']}** "
+                    f"— {label}"
+                )
+
+            st.subheader("Experience Requirements")
+
+            for requirement in requirements[
+                "experience_requirements"
+            ]:
+
+                importance = requirement["importance"]
+
+                if importance == "required":
+                    icon = "🔴"
+                    label = "Required"
+                else:
+                    icon = "🟡"
+                    label = "Preferred"
+
+                st.write(
+                    f"{icon} **{requirement['name']}** "
+                    f"— {label}"
+                )
+
+            st.subheader("Education Requirements")
+
+            for requirement in requirements[
+                "education_requirements"
+            ]:
+
+                importance = requirement["importance"]
+
+                if importance == "required":
+                    icon = "🔴"
+                    label = "Required"
+                else:
+                    icon = "🟡"
+                    label = "Preferred"
+
+                st.write(
+                    f"{icon} **{requirement['name']}** "
+                    f"— {label}"
+                )
+
+            st.subheader("Languages")
+
+            for requirement in requirements[
+                "languages"
+            ]:
+
+                importance = requirement["importance"]
+
+                if importance == "required":
+                    icon = "🔴"
+                    label = "Required"
+                else:
+                    icon = "🟡"
+                    label = "Preferred"
+
+                st.write(
+                    f"{icon} **{requirement['name']}** "
+                    f"— {label}"
+                )
+
+        else:
+
+            try:
+                error = response.json()
+
+                message = error.get(
+                    "detail",
+                    "Could not extract job requirements.",
+                )
+
+            except ValueError:
+                message = (
+                    "Could not extract job requirements."
+                )
+
+            st.error(message)
+
+    except requests.RequestException:
+
+        st.error(
+            "Could not connect to the backend."
+        )
