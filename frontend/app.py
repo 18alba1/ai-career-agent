@@ -197,3 +197,160 @@ if st.button("Save Job"):
             st.error(
                 "Could not connect to the backend."
             )
+
+# ============================================================
+# JOB MATCHING SECTION
+# ============================================================
+
+st.divider()
+
+st.header("Match Candidate to Job")
+
+candidate_id = st.number_input(
+    "Candidate ID",
+    min_value=1,
+    value=1,
+    step=1,
+)
+
+job_id = st.number_input(
+    "Job ID",
+    min_value=1,
+    value=1,
+    step=1,
+)
+
+
+if st.button("Match Job"):
+
+    try:
+
+        response = requests.get(
+            f"{API_URL}/match/{candidate_id}/{job_id}",
+            timeout=30,
+        )
+
+        if response.status_code == 200:
+
+            result = response.json()
+
+            st.success("Job matching completed!")
+
+            st.metric(
+                "Match Score",
+                f"{result['match_score']}%",
+            )
+
+            st.subheader("Matched Skills")
+
+            if result["matched_skills"]:
+
+                for skill in result["matched_skills"]:
+                    st.write(f"✅ {skill}")
+
+            else:
+
+                st.write("No matching skills found.")
+
+            st.subheader("Missing Skills")
+
+            if result["missing_skills"]:
+
+                for skill in result["missing_skills"]:
+                    st.write(f"❌ {skill}")
+
+            else:
+
+                st.write("No missing skills.")
+
+        else:
+
+            try:
+                error = response.json()
+
+                message = error.get(
+                    "detail",
+                    "Could not match candidate to job.",
+                )
+
+            except ValueError:
+                message = "Could not match candidate to job."
+
+            st.error(message)
+
+    except requests.RequestException:
+
+        st.error(
+            "Could not connect to the backend."
+        )
+
+# ============================================================
+# SEMANTIC JOB MATCHING SECTION
+# ============================================================
+
+st.divider()
+
+st.header("Semantic Job Matching")
+
+semantic_candidate_id = st.number_input(
+    "Candidate ID for semantic matching",
+    min_value=1,
+    value=1,
+    step=1,
+)
+
+semantic_job_id = st.number_input(
+    "Job ID for semantic matching",
+    min_value=1,
+    value=1,
+    step=1,
+)
+
+
+if st.button("Run Semantic Matching"):
+
+    try:
+
+        response = requests.get(
+            f"{API_URL}/semantic-match/"
+            f"{semantic_candidate_id}/"
+            f"{semantic_job_id}",
+            timeout=120,
+        )
+
+        if response.status_code == 200:
+
+            result = response.json()
+
+            st.success(
+                "Semantic matching completed!"
+            )
+
+            st.metric(
+                "Semantic Similarity",
+                f"{result['semantic_score']}%",
+            )
+
+        else:
+
+            try:
+                error = response.json()
+
+                message = error.get(
+                    "detail",
+                    "Could not run semantic matching.",
+                )
+
+            except ValueError:
+
+                message = (
+                    "Could not run semantic matching."
+                )
+
+            st.error(message)
+
+    except requests.RequestException:
+
+        st.error(
+            "Could not connect to the backend."
+        )

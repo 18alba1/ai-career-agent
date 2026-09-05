@@ -7,7 +7,11 @@ from backend.database.database import Base, engine, get_db
 from backend.schemas.candidate import CandidateProfile
 from backend.services.candidate_profile import create_candidate_profile
 from backend.services.cv_parser import extract_cv_text
-
+from backend.schemas.matching import JobMatchResponse
+from backend.services.job_matching import calculate_skill_match
+from backend.services.job_matching import (
+    calculate_semantic_match,
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -156,3 +160,84 @@ def get_jobs(
     return db.query(JobDB).order_by(
         JobDB.created_at.desc()
     ).all()
+
+@app.get(
+    "/match/{candidate_id}/{job_id}",
+    response_model=JobMatchResponse,
+)
+def match_candidate_to_job(
+    candidate_id: int,
+    job_id: int,
+    db: Session = Depends(get_db),
+):
+    candidate = db.get(
+        CandidateProfileDB,
+        candidate_id,
+    )
+
+    if candidate is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Candidate profile not found.",
+        )
+
+    job = db.get(
+        JobDB,
+        job_id,
+    )
+
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found.",
+        )
+
+    result = calculate_skill_match(
+        candidate_skills=candidate.skills,
+        job_description=job.description,
+    )
+
+    return {
+        "job_id": job.id,
+        "candidate_id": candidate.id,
+        **result,
+    }
+
+@app.get("/semantic-match/{candidate_id}/{job_id}")
+def semantic_match_candidate_to_job(
+    candidate_id: int,
+    job_id: int,
+    db: Session = Depends(get_db),
+):
+    candidate = db.get(
+        CandidateProfileDB,
+        candidate_id,
+    )
+
+    if candidate is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Candidate profile not found.",
+        )
+
+    job = db.get(
+        JobDB,
+        job_id,
+    )
+
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found.",
+        )
+
+    result = calculate_semantic_match(
+        candidate_skills=candidate.skills,
+        job_description=job.description,
+    )
+
+    return {
+        "job_id": job.id,
+        "candidate_id": candidate.id,
+        **result,
+    }
