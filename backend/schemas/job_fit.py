@@ -14,4 +14,5 @@ class JobFitResponse(BaseModel):
     candidate_id: int
     job_id: int
     overall_score: float
+    category_scores: dict[str, float]
     requirement_matches: list[RequirementMatch]

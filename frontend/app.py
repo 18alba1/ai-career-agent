@@ -562,6 +562,45 @@ if st.button("Calculate Job Fit"):
             )
 
             st.subheader(
+                "Category Scores"
+            )
+
+            category_scores = (
+                result["category_scores"]
+            )
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+
+                st.metric(
+                    "Technical",
+                    f"{category_scores['technical']}%",
+                )
+
+                st.metric(
+                    "Experience",
+                    f"{category_scores['experience']}%",
+                )
+
+                st.metric(
+                    "Education",
+                    f"{category_scores['education']}%",
+                )
+
+            with col2:
+
+                st.metric(
+                    "Soft Skills",
+                    f"{category_scores['soft']}%",
+                )
+
+                st.metric(
+                    "Languages",
+                    f"{category_scores['languages']}%",
+                )
+
+            st.subheader(
                 "Requirement Analysis"
             )
 
@@ -570,12 +609,15 @@ if st.button("Calculate Job Fit"):
             ]:
 
                 if match["status"] == "strong":
+
                     icon = "✅"
 
                 elif match["status"] == "partial":
+
                     icon = "🟡"
 
                 else:
+
                     icon = "❌"
 
                 st.write(
@@ -586,13 +628,16 @@ if st.button("Calculate Job Fit"):
                 )
 
                 if match["evidence"]:
+
                     st.caption(
-                        f"Evidence: {match['evidence']}"
+                        "Evidence: "
+                        + match["evidence"]
                     )
 
         else:
 
             try:
+
                 error = response.json()
 
                 message = error.get(
@@ -601,6 +646,7 @@ if st.button("Calculate Job Fit"):
                 )
 
             except ValueError:
+
                 message = (
                     "Could not calculate job fit."
                 )
