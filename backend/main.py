@@ -17,6 +17,11 @@ from backend.services.job_requirements import extract_job_requirements
 from backend.services.job_matching import (
     calculate_job_fit,
 )
+from backend.services.cv_tailoring import tailor_cv
+from backend.schemas.cover_letter import CoverLetter
+from backend.services.cover_letter import (
+    generate_cover_letter,
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -316,3 +321,92 @@ def calculate_candidate_job_fit(
         "job_id": job.id,
         **result,
     }
+
+@app.get(
+    "/tailor-cv/{candidate_id}/{job_id}"
+)
+def tailor_candidate_cv(
+    candidate_id: int,
+    job_id: int,
+    db: Session = Depends(get_db),
+):
+    candidate = db.get(
+        CandidateProfileDB,
+        candidate_id,
+    )
+
+    if candidate is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Candidate profile not found.",
+        )
+
+    job = db.get(
+        JobDB,
+        job_id,
+    )
+
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found.",
+        )
+
+    requirements = extract_job_requirements(
+        job.description
+    )
+
+    tailored_cv = tailor_cv(
+        candidate=candidate,
+        requirements=requirements,
+    )
+
+    return tailored_cv
+
+@app.get(
+    "/cover-letter/{candidate_id}/{job_id}",
+    response_model=CoverLetter,
+)
+def generate_candidate_cover_letter(
+    candidate_id: int,
+    job_id: int,
+    db: Session = Depends(get_db),
+):
+
+    candidate = db.get(
+        CandidateProfileDB,
+        candidate_id,
+    )
+
+    if candidate is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Candidate profile not found."
+            ),
+        )
+
+    job = db.get(
+        JobDB,
+        job_id,
+    )
+
+    if job is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found.",
+        )
+
+    requirements = extract_job_requirements(
+        job.description
+    )
+
+    cover_letter = generate_cover_letter(
+        candidate=candidate,
+        job=job,
+        requirements=requirements,
+    )
+
+    return cover_letter

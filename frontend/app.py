@@ -658,3 +658,183 @@ if st.button("Calculate Job Fit"):
         st.error(
             "Could not connect to the backend."
         )
+
+# ============================================================
+# CV TAILORING
+# ============================================================
+
+st.divider()
+
+st.header("Tailor CV for Job")
+
+tailor_candidate_id = st.number_input(
+    "Candidate ID",
+    min_value=1,
+    value=1,
+    step=1,
+    key="tailor_candidate_id",
+)
+
+tailor_job_id = st.number_input(
+    "Job ID",
+    min_value=1,
+    value=1,
+    step=1,
+    key="tailor_job_id",
+)
+
+
+if st.button("Tailor CV"):
+
+    try:
+
+        response = requests.get(
+            f"{API_URL}/tailor-cv/"
+            f"{tailor_candidate_id}/"
+            f"{tailor_job_id}",
+            timeout=120,
+        )
+
+        if response.status_code == 200:
+
+            tailored_cv = response.json()
+
+            st.success(
+                "CV tailored successfully!"
+            )
+
+            st.subheader(
+                "Professional Summary"
+            )
+
+            st.write(
+                tailored_cv[
+                    "professional_summary"
+                ]
+            )
+
+            st.subheader(
+                "Skills to Highlight"
+            )
+
+            for skill in tailored_cv[
+                "skills_to_highlight"
+            ]:
+
+                st.write(
+                    f"### {skill['name']}"
+                )
+
+                st.write(
+                    skill["description"]
+                )
+
+            st.subheader(
+                "Experience"
+            )
+
+            for experience in tailored_cv[
+                "experience"
+            ]:
+
+                st.write(
+                    f"### "
+                    f"{experience['role']} — "
+                    f"{experience['company']}"
+                )
+
+                st.write(
+                    experience["description"]
+                )
+
+            st.subheader(
+                "Projects"
+            )
+
+            for project in tailored_cv[
+                "projects"
+            ]:
+
+                st.write(
+                    f"### {project['name']}"
+                )
+
+                st.write(
+                    project["description"]
+                )
+
+        else:
+
+            try:
+
+                error = response.json()
+
+                message = error.get(
+                    "detail",
+                    "Could not tailor CV.",
+                )
+
+            except ValueError:
+
+                message = (
+                    "Could not tailor CV."
+                )
+
+            st.error(message)
+
+    except requests.RequestException:
+
+        st.error(
+            "Could not connect to the backend."
+        )
+
+st.header("Generate Cover Letter")
+
+cover_candidate_id = st.number_input(
+    "Candidate ID",
+    min_value=1,
+    value=1,
+    step=1,
+    key="cover_candidate_id",
+)
+
+cover_job_id = st.number_input(
+    "Job ID",
+    min_value=1,
+    value=1,
+    step=1,
+    key="cover_job_id",
+)
+
+if st.button("Generate Cover Letter", key="generate_cover_letter"):
+    with st.spinner("Generating cover letter..."):
+
+        try:
+            response = requests.get(
+                f"{API_URL}/cover-letter/"
+                f"{cover_candidate_id}/"
+                f"{cover_job_id}",
+                timeout=300,
+            )
+
+            if response.status_code == 200:
+                cover_letter = response.json()
+
+                st.success("Cover letter generated successfully!")
+
+                st.subheader(cover_letter["subject"])
+
+                st.write(cover_letter["greeting"])
+
+                st.write(cover_letter["body"])
+
+                st.write(cover_letter["closing"])
+
+            else:
+                st.error(
+                    f"Error {response.status_code}: "
+                    f"{response.text}"
+                )
+
+        except requests.exceptions.RequestException as error:
+            st.error(f"Could not connect to the backend: {error}")
