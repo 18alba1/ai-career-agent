@@ -9,6 +9,9 @@ from backend.services.candidate_profile import create_candidate_profile
 from backend.services.cv_parser import extract_cv_text
 from backend.schemas.matching import JobMatchResponse
 from backend.services.job_matching import calculate_skill_match
+from sqlalchemy import text
+from backend.services.candidate_retrieval import retrieve_candidate_chunks
+from backend.services.candidate_rag import answer_candidate_question
 from backend.services.job_matching import (
     calculate_semantic_match,
 )
@@ -22,10 +25,25 @@ from backend.schemas.cover_letter import CoverLetter
 from backend.services.cover_letter import (
     generate_cover_letter,
 )
+from backend.database.models import (
+    CandidateProfileDB,
+    CandidateChunkDB,
+    JobDB,
+)
+from backend.services.candidate_knowledge import (
+    create_candidate_embeddings,
+    save_candidate_embeddings,
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    with engine.begin() as connection:
+        connection.execute(
+            text("CREATE EXTENSION IF NOT EXISTS vector")
+        )
+
     Base.metadata.create_all(bind=engine)
+
     yield
 
 
@@ -96,6 +114,16 @@ async def upload_cv(
         db.add(profile_db)
         db.commit()
         db.refresh(profile_db)
+
+        # Create embeddings for the candidate's knowledge
+        embedded_chunks = create_candidate_embeddings(profile)
+
+        # Save chunks and embeddings to PostgreSQL
+        save_candidate_embeddings(
+            db=db,
+            candidate_id=profile_db.id,
+            embedded_chunks=embedded_chunks,
+        )
 
         return profile
 
@@ -410,3 +438,67 @@ def generate_candidate_cover_letter(
     )
 
     return cover_letter
+
+@app.get("/retrieve/{candidate_id}")
+def retrieve_candidate_knowledge(
+    candidate_id: int,
+    query: str,
+    top_k: int = 5,
+    db: Session = Depends(get_db),
+):
+    try:
+        chunks = retrieve_candidate_chunks(
+            db=db,
+            candidate_id=candidate_id,
+            query=query,
+            top_k=top_k,
+        )
+
+        return {
+            "candidate_id": candidate_id,
+            "query": query,
+            "results": [
+                {
+                    "id": chunk.id,
+                    "category": chunk.category,
+                    "text": chunk.text,
+                }
+                for chunk in chunks
+            ],
+        }
+
+    except Exception as error:
+        print(f"Retrieval error: {error}")
+
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred during candidate retrieval.",
+        ) from error
+
+@app.get("/candidate-rag/{candidate_id}")
+def candidate_rag(
+    candidate_id: int,
+    question: str,
+    top_k: int = 5,
+):
+    try:
+        result = answer_candidate_question(
+            candidate_id=candidate_id,
+            question=question,
+            top_k=top_k,
+        )
+
+        return {
+            "candidate_id": candidate_id,
+            "question": question,
+            "answer": result["answer"],
+            "sources": result["sources"],
+        }
+
+    except Exception as error:
+        print(f"RAG error: {error}")
+
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while answering the question.",
+        ) from error

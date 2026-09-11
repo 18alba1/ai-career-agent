@@ -838,3 +838,80 @@ if st.button("Generate Cover Letter", key="generate_cover_letter"):
 
         except requests.exceptions.RequestException as error:
             st.error(f"Could not connect to the backend: {error}")
+
+# ============================================================
+# CANDIDATE RAG
+# ============================================================
+
+st.header("Ask the Candidate")
+
+rag_candidate_id = st.number_input(
+    "Candidate ID",
+    min_value=1,
+    value=5,
+    step=1,
+    key="rag_candidate_id",
+)
+
+rag_question = st.text_input(
+    "Ask a question about the candidate",
+    placeholder="What experience does the candidate have with AI?",
+    key="rag_question",
+)
+
+rag_top_k = st.slider(
+    "Sources per category",
+    min_value=1,
+    max_value=3,
+    value=2,
+    key="rag_top_k",
+)
+
+if st.button("Ask AI", key="ask_candidate_rag"):
+
+    if not rag_question.strip():
+        st.warning("Please enter a question.")
+
+    else:
+        with st.spinner("Searching candidate knowledge and generating answer..."):
+
+            try:
+                response = requests.get(
+                    f"{API_URL}/candidate-rag/{rag_candidate_id}",
+                    params={
+                        "question": rag_question,
+                        "top_k": rag_top_k,
+                    },
+                    timeout=300,
+                )
+
+                if response.status_code == 200:
+
+                    result = response.json()
+
+                    st.subheader("Answer")
+
+                    st.write(result["answer"])
+
+                    st.subheader("Sources")
+
+                    for source in result["sources"]:
+
+                        st.markdown(
+                            f"**{source['category'].capitalize()}**"
+                        )
+
+                        st.write(source["text"])
+
+                        st.divider()
+
+                else:
+                    st.error(
+                        f"Error {response.status_code}: "
+                        f"{response.text}"
+                    )
+
+            except requests.exceptions.RequestException as error:
+                st.error(
+                    f"Could not connect to the backend: {error}"
+                )
