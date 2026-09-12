@@ -1035,15 +1035,28 @@ interactive_job_id = st.number_input(
     key="interactive_job_id",
 )
 
-# Initialize interview state
+
+# ------------------------------------------------------------
+# INITIALIZE INTERVIEW STATE
+# ------------------------------------------------------------
+
 if "interview_history" not in st.session_state:
     st.session_state.interview_history = []
 
 if "current_interview_question" not in st.session_state:
     st.session_state.current_interview_question = None
 
+if "current_interview_evaluation" not in st.session_state:
+    st.session_state.current_interview_evaluation = None
+
 if "interview_started" not in st.session_state:
     st.session_state.interview_started = False
+
+if "answer_submitted" not in st.session_state:
+    st.session_state.answer_submitted = False
+
+if "interview_question_number" not in st.session_state:
+    st.session_state.interview_question_number = 0
 
 
 # ------------------------------------------------------------
@@ -1052,12 +1065,17 @@ if "interview_started" not in st.session_state:
 
 col1, col2 = st.columns(2)
 
+
 with col1:
+
     if st.button(
         "Start Interview",
         key="start_interview",
     ):
-        with st.spinner("Starting interview..."):
+
+        with st.spinner(
+            "Starting interview..."
+        ):
 
             try:
                 response = requests.post(
@@ -1073,95 +1091,287 @@ with col1:
                 )
 
                 if response.status_code == 200:
+
                     result = response.json()
 
+                    # Reset interview completely
                     st.session_state.interview_history = []
-                    st.session_state.current_interview_question = result
+
+                    st.session_state.current_interview_question = (
+                        result
+                    )
+
+                    st.session_state.current_interview_evaluation = (
+                        None
+                    )
+
                     st.session_state.interview_started = True
+
+                    st.session_state.answer_submitted = False
+
+                    st.session_state.interview_question_number = 1
 
                     st.rerun()
 
                 else:
+
                     st.error(
                         f"Error {response.status_code}: "
                         f"{response.text}"
                     )
 
             except requests.exceptions.RequestException as error:
+
                 st.error(
                     f"Could not connect to the backend: {error}"
                 )
 
 
 with col2:
+
     if st.button(
         "Reset Interview",
         key="reset_interview",
     ):
+
         st.session_state.interview_history = []
+
         st.session_state.current_interview_question = None
+
+        st.session_state.current_interview_evaluation = None
+
         st.session_state.interview_started = False
+
+        st.session_state.answer_submitted = False
+
+        st.session_state.interview_question_number = 0
 
         st.rerun()
 
 
 # ------------------------------------------------------------
-# INTERVIEW
+# ACTIVE INTERVIEW
 # ------------------------------------------------------------
 
 if st.session_state.interview_started:
 
-    question_data = st.session_state.current_interview_question
+    question_data = (
+        st.session_state.current_interview_question
+    )
 
     if question_data:
 
-        st.subheader(
-            f"Question {len(st.session_state.interview_history) + 1}"
+        question_number = (
+            st.session_state.interview_question_number
         )
 
-        st.write(question_data["question"])
+        st.subheader(
+            f"Question {question_number}"
+        )
+
+        st.write(
+            question_data["question"]
+        )
 
         st.caption(
             f"Category: {question_data['category']}"
         )
 
-        answer = st.text_area(
-            "Your answer",
-            height=180,
-            key=(
-                f"interview_answer_"
-                f"{len(st.session_state.interview_history)}"
-            ),
-        )
+        # ----------------------------------------------------
+        # SHOW QUESTION + ANSWER INPUT
+        # ----------------------------------------------------
 
-        if st.button(
-            "Submit Answer",
-            key=(
-                f"submit_interview_answer_"
-                f"{len(st.session_state.interview_history)}"
-            ),
+        if not st.session_state.answer_submitted:
+
+            answer = st.text_area(
+                "Your answer",
+                height=200,
+                key=(
+                    f"interview_answer_"
+                    f"{question_number}"
+                ),
+            )
+
+            if st.button(
+                "Submit Answer",
+                key=(
+                    f"submit_interview_answer_"
+                    f"{question_number}"
+                ),
+            ):
+
+                if not answer.strip():
+
+                    st.warning(
+                        "Please provide an answer before continuing."
+                    )
+
+                else:
+
+                    current_question = (
+                        question_data["question"]
+                    )
+
+                    with st.spinner(
+                        "Evaluating your answer..."
+                    ):
+
+                        try:
+
+                            response = requests.post(
+                                (
+                                    f"{API_URL}/interview/evaluate/"
+                                    f"{interactive_candidate_id}/"
+                                    f"{interactive_job_id}"
+                                ),
+                                params={
+                                    "question": current_question,
+                                    "answer": answer,
+                                    "question_category": (
+                                        question_data["category"]
+                                    ),
+                                    "question_basis": (
+                                        question_data["basis"]
+                                    ),
+                                },
+                                timeout=300,
+                            )
+
+                            if response.status_code == 200:
+
+                                evaluation = response.json()
+
+                                # Save the turn exactly once
+                                st.session_state.interview_history.append(
+                                    {
+                                        "question": current_question,
+                                        "answer": answer,
+                                    }
+                                )
+
+                                # Store evaluation
+                                st.session_state.current_interview_evaluation = (
+                                    evaluation
+                                )
+
+                                # IMPORTANT:
+                                # Lock the current question.
+                                st.session_state.answer_submitted = True
+
+                                st.rerun()
+
+                            else:
+
+                                st.error(
+                                    f"Error {response.status_code}: "
+                                    f"{response.text}"
+                                )
+
+                        except requests.exceptions.RequestException as error:
+
+                            st.error(
+                                f"Could not connect to the backend: {error}"
+                            )
+
+
+        # ----------------------------------------------------
+        # ANSWER EVALUATION
+        # ----------------------------------------------------
+
+        if (
+            st.session_state.answer_submitted
+            and st.session_state.current_interview_evaluation
         ):
 
-            if not answer.strip():
-                st.warning(
-                    "Please provide an answer before continuing."
+            evaluation = (
+                st.session_state.current_interview_evaluation
+            )
+
+            st.divider()
+
+            st.subheader(
+                "Answer Evaluation"
+            )
+
+            st.metric(
+                "Overall Score",
+                f"{evaluation['overall_score']}/10",
+            )
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+
+                st.write(
+                    f"**Relevance:** "
+                    f"{evaluation['relevance_score']}/10"
                 )
 
-            else:
-
-                # Save current turn
-                st.session_state.interview_history.append(
-                    {
-                        "question": question_data["question"],
-                        "answer": answer,
-                    }
+                st.write(
+                    f"**Clarity:** "
+                    f"{evaluation['clarity_score']}/10"
                 )
+
+            with col2:
+
+                st.write(
+                    f"**{evaluation['category_specific_label']}:** "
+                    f"{evaluation['category_specific_score']}/10"
+                )
+
+                st.write(
+                    f"**Grounding:** "
+                    f"{evaluation['grounding_score']}/10"
+                )
+
+            st.subheader(
+                "Strengths"
+            )
+
+            for strength in evaluation["strengths"]:
+
+                st.write(
+                    f"✅ {strength}"
+                )
+
+            st.subheader(
+                "Areas to Improve"
+            )
+
+            for improvement in evaluation["improvements"]:
+
+                st.write(
+                    f"→ {improvement}"
+                )
+
+            st.subheader(
+                "Feedback"
+            )
+
+            st.write(
+                evaluation["feedback"]
+            )
+
+            st.divider()
+
+            # ------------------------------------------------
+            # CONTINUE TO NEXT QUESTION
+            # ------------------------------------------------
+
+            if st.button(
+                "Continue Interview",
+                key=(
+                    f"continue_interview_"
+                    f"{question_number}"
+                ),
+            ):
 
                 with st.spinner(
-                    "Thinking about your answer..."
+                    "Generating the next question..."
                 ):
 
                     try:
+
                         response = requests.post(
                             (
                                 f"{API_URL}/interview/next/"
@@ -1180,19 +1390,33 @@ if st.session_state.interview_started:
 
                             next_question = response.json()
 
+                            # Replace current question
                             st.session_state.current_interview_question = (
                                 next_question
                             )
 
+                            # Remove previous evaluation
+                            st.session_state.current_interview_evaluation = (
+                                None
+                            )
+
+                            # Unlock answer field
+                            st.session_state.answer_submitted = False
+
+                            # Move to next question
+                            st.session_state.interview_question_number += 1
+
                             st.rerun()
 
                         else:
+
                             st.error(
                                 f"Error {response.status_code}: "
                                 f"{response.text}"
                             )
 
                     except requests.exceptions.RequestException as error:
+
                         st.error(
                             f"Could not connect to the backend: {error}"
                         )
@@ -1209,7 +1433,9 @@ if (
 
     st.divider()
 
-    st.subheader("Interview History")
+    st.subheader(
+        "Interview History"
+    )
 
     for index, turn in enumerate(
         st.session_state.interview_history,

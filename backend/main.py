@@ -45,6 +45,11 @@ from backend.services.candidate_knowledge import (
     save_candidate_embeddings,
 )
 
+from backend.schemas.interview_evaluation import InterviewEvaluation
+from backend.services.interview_evaluation import (
+    evaluate_interview_answer,
+)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     with engine.begin() as connection:
@@ -656,5 +661,118 @@ def next_interview_question(
             detail=(
                 "An error occurred while generating "
                 "the next interview question."
+            ),
+        ) from error
+
+@app.post(
+    "/interview/evaluate/{candidate_id}/{job_id}",
+    response_model=InterviewEvaluation,
+)
+def evaluate_interview(
+    candidate_id: int,
+    job_id: int,
+    question: str,
+    answer: str,
+    question_category: str,
+    question_basis: str,
+    db: Session = Depends(get_db),
+):
+    candidate = db.get(
+        CandidateProfileDB,
+        candidate_id,
+    )
+
+    if candidate is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Candidate profile not found.",
+        )
+
+    job = db.get(
+        JobDB,
+        job_id,
+    )
+
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found.",
+        )
+
+    if not question.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Question cannot be empty.",
+        )
+
+    if not answer.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Answer cannot be empty.",
+        )
+
+    try:
+        from backend.services.job_requirements import (
+            extract_job_requirements,
+        )
+
+        requirements = extract_job_requirements(
+            job.description
+        )
+
+        from backend.services.candidate_retrieval import (
+            retrieve_candidate_chunks,
+        )
+
+        candidate_chunks = retrieve_candidate_chunks(
+            db=db,
+            candidate_id=candidate.id,
+            query=question,
+            top_k=4,
+            categories=[
+                "experience",
+                "project",
+                "skills",
+                "education",
+            ],
+        )
+
+        candidate_context = "\n\n".join(
+            (
+                f"[Source: {chunk.category}]\n"
+                f"{chunk.text}"
+            )
+            for chunk in candidate_chunks
+        )
+
+        result = evaluate_interview_answer(
+            question=question,
+            answer=answer,
+            candidate=candidate,
+            candidate_context=candidate_context,
+            job=job,
+            requirements=requirements,
+            question_category=question_category,
+            question_basis=question_basis,
+        )
+
+        return result
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    except Exception as error:
+        print(
+            f"Interview evaluation error: {error}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "An error occurred while evaluating "
+                "the interview answer."
             ),
         ) from error
