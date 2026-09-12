@@ -12,6 +12,16 @@ from backend.services.job_matching import calculate_skill_match
 from sqlalchemy import text
 from backend.services.candidate_retrieval import retrieve_candidate_chunks
 from backend.services.candidate_rag import answer_candidate_question
+from backend.schemas.interview import InterviewQuestionSet
+from backend.services.interview_questions import generate_interview_questions
+
+from backend.schemas.interview import (
+    InterviewQuestion,
+    NextInterviewQuestionRequest,
+)
+from backend.services.interview_session import (
+    generate_next_interview_question,
+)
 from backend.services.job_matching import (
     calculate_semantic_match,
 )
@@ -501,4 +511,150 @@ def candidate_rag(
         raise HTTPException(
             status_code=500,
             detail="An error occurred while answering the question.",
+        ) from error
+
+@app.get(
+    "/interview-questions/{candidate_id}/{job_id}",
+    response_model=InterviewQuestionSet,
+)
+def generate_interview_questions_endpoint(
+    candidate_id: int,
+    job_id: int,
+    number_of_questions: int = 8,
+    db: Session = Depends(get_db),
+):
+    candidate = db.get(
+        CandidateProfileDB,
+        candidate_id,
+    )
+
+    if candidate is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Candidate profile not found.",
+        )
+
+    job = db.get(
+        JobDB,
+        job_id,
+    )
+
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found.",
+        )
+
+    if number_of_questions < 1 or number_of_questions > 15:
+        raise HTTPException(
+            status_code=400,
+            detail="Number of questions must be between 1 and 15.",
+        )
+
+    try:
+        from backend.services.job_requirements import (
+            extract_job_requirements,
+        )
+
+        requirements = extract_job_requirements(
+            job.description
+        )
+
+        result = generate_interview_questions(
+            db=db,
+            candidate=candidate,
+            job=job,
+            requirements=requirements,
+            number_of_questions=number_of_questions,
+        )
+
+        return result
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    except Exception as error:
+        print(
+            f"Interview question generation error: {error}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "An error occurred while generating "
+                "interview questions."
+            ),
+        ) from error
+
+@app.post(
+    "/interview/next/{candidate_id}/{job_id}",
+    response_model=InterviewQuestion,
+)
+def next_interview_question(
+    candidate_id: int,
+    job_id: int,
+    request: NextInterviewQuestionRequest,
+    db: Session = Depends(get_db),
+):
+    candidate = db.get(
+        CandidateProfileDB,
+        candidate_id,
+    )
+
+    if candidate is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Candidate profile not found.",
+        )
+
+    job = db.get(
+        JobDB,
+        job_id,
+    )
+
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found.",
+        )
+
+    try:
+        from backend.services.job_requirements import (
+            extract_job_requirements,
+        )
+
+        requirements = extract_job_requirements(
+            job.description
+        )
+
+        result = generate_next_interview_question(
+            db=db,
+            candidate=candidate,
+            job=job,
+            requirements=requirements,
+            history=request.history,
+        )
+
+        return result
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    except Exception as error:
+        print(
+            f"Next interview question error: {error}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "An error occurred while generating "
+                "the next interview question."
+            ),
         ) from error

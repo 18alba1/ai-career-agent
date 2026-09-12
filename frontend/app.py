@@ -915,3 +915,321 @@ if st.button("Ask AI", key="ask_candidate_rag"):
                 st.error(
                     f"Could not connect to the backend: {error}"
                 )
+
+# ============================================================
+# INTERVIEW QUESTION GENERATOR
+# ============================================================
+
+st.header("Generate Interview Questions")
+
+interview_candidate_id = st.number_input(
+    "Candidate ID",
+    min_value=1,
+    value=5,
+    step=1,
+    key="interview_candidate_id",
+)
+
+interview_job_id = st.number_input(
+    "Job ID",
+    min_value=1,
+    value=2,
+    step=1,
+    key="interview_job_id",
+)
+
+number_of_questions = st.slider(
+    "Number of questions",
+    min_value=4,
+    max_value=15,
+    value=8,
+    key="number_of_interview_questions",
+)
+
+if st.button(
+    "Generate Interview Questions",
+    key="generate_interview_questions",
+):
+
+    with st.spinner(
+        "Generating job-specific interview questions..."
+    ):
+
+        try:
+            response = requests.get(
+                (
+                    f"{API_URL}/interview-questions/"
+                    f"{interview_candidate_id}/"
+                    f"{interview_job_id}"
+                ),
+                params={
+                    "number_of_questions": number_of_questions,
+                },
+                timeout=300,
+            )
+
+            if response.status_code == 200:
+
+                result = response.json()
+
+                st.success(
+                    "Interview questions generated successfully!"
+                )
+
+                for index, question in enumerate(
+                    result["questions"],
+                    start=1,
+                ):
+
+                    st.subheader(
+                        f"{index}. "
+                        f"{question['category'].capitalize()}"
+                    )
+
+                    st.write(
+                        question["question"]
+                    )
+
+                    st.caption(
+                        f"Purpose: {question['purpose']}"
+                    )
+
+                    st.caption(
+                        f"Basis: {question['basis']}"
+                    )
+
+                    st.divider()
+
+            else:
+
+                st.error(
+                    f"Error {response.status_code}: "
+                    f"{response.text}"
+                )
+
+        except requests.exceptions.RequestException as error:
+
+            st.error(
+                f"Could not connect to the backend: {error}"
+            )
+
+# ============================================================
+# INTERACTIVE AI INTERVIEW
+# ============================================================
+
+st.header("AI Interview")
+
+interactive_candidate_id = st.number_input(
+    "Candidate ID",
+    min_value=1,
+    value=5,
+    step=1,
+    key="interactive_candidate_id",
+)
+
+interactive_job_id = st.number_input(
+    "Job ID",
+    min_value=1,
+    value=2,
+    step=1,
+    key="interactive_job_id",
+)
+
+# Initialize interview state
+if "interview_history" not in st.session_state:
+    st.session_state.interview_history = []
+
+if "current_interview_question" not in st.session_state:
+    st.session_state.current_interview_question = None
+
+if "interview_started" not in st.session_state:
+    st.session_state.interview_started = False
+
+
+# ------------------------------------------------------------
+# START / RESET INTERVIEW
+# ------------------------------------------------------------
+
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button(
+        "Start Interview",
+        key="start_interview",
+    ):
+        with st.spinner("Starting interview..."):
+
+            try:
+                response = requests.post(
+                    (
+                        f"{API_URL}/interview/next/"
+                        f"{interactive_candidate_id}/"
+                        f"{interactive_job_id}"
+                    ),
+                    json={
+                        "history": []
+                    },
+                    timeout=300,
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+
+                    st.session_state.interview_history = []
+                    st.session_state.current_interview_question = result
+                    st.session_state.interview_started = True
+
+                    st.rerun()
+
+                else:
+                    st.error(
+                        f"Error {response.status_code}: "
+                        f"{response.text}"
+                    )
+
+            except requests.exceptions.RequestException as error:
+                st.error(
+                    f"Could not connect to the backend: {error}"
+                )
+
+
+with col2:
+    if st.button(
+        "Reset Interview",
+        key="reset_interview",
+    ):
+        st.session_state.interview_history = []
+        st.session_state.current_interview_question = None
+        st.session_state.interview_started = False
+
+        st.rerun()
+
+
+# ------------------------------------------------------------
+# INTERVIEW
+# ------------------------------------------------------------
+
+if st.session_state.interview_started:
+
+    question_data = st.session_state.current_interview_question
+
+    if question_data:
+
+        st.subheader(
+            f"Question {len(st.session_state.interview_history) + 1}"
+        )
+
+        st.write(question_data["question"])
+
+        st.caption(
+            f"Category: {question_data['category']}"
+        )
+
+        answer = st.text_area(
+            "Your answer",
+            height=180,
+            key=(
+                f"interview_answer_"
+                f"{len(st.session_state.interview_history)}"
+            ),
+        )
+
+        if st.button(
+            "Submit Answer",
+            key=(
+                f"submit_interview_answer_"
+                f"{len(st.session_state.interview_history)}"
+            ),
+        ):
+
+            if not answer.strip():
+                st.warning(
+                    "Please provide an answer before continuing."
+                )
+
+            else:
+
+                # Save current turn
+                st.session_state.interview_history.append(
+                    {
+                        "question": question_data["question"],
+                        "answer": answer,
+                    }
+                )
+
+                with st.spinner(
+                    "Thinking about your answer..."
+                ):
+
+                    try:
+                        response = requests.post(
+                            (
+                                f"{API_URL}/interview/next/"
+                                f"{interactive_candidate_id}/"
+                                f"{interactive_job_id}"
+                            ),
+                            json={
+                                "history": (
+                                    st.session_state.interview_history
+                                )
+                            },
+                            timeout=300,
+                        )
+
+                        if response.status_code == 200:
+
+                            next_question = response.json()
+
+                            st.session_state.current_interview_question = (
+                                next_question
+                            )
+
+                            st.rerun()
+
+                        else:
+                            st.error(
+                                f"Error {response.status_code}: "
+                                f"{response.text}"
+                            )
+
+                    except requests.exceptions.RequestException as error:
+                        st.error(
+                            f"Could not connect to the backend: {error}"
+                        )
+
+
+# ------------------------------------------------------------
+# INTERVIEW HISTORY
+# ------------------------------------------------------------
+
+if (
+    st.session_state.interview_started
+    and st.session_state.interview_history
+):
+
+    st.divider()
+
+    st.subheader("Interview History")
+
+    for index, turn in enumerate(
+        st.session_state.interview_history,
+        start=1,
+    ):
+
+        st.markdown(
+            f"**Question {index}**"
+        )
+
+        st.write(
+            turn["question"]
+        )
+
+        st.markdown(
+            "**Your answer**"
+        )
+
+        st.write(
+            turn["answer"]
+        )
+
+        st.divider()
