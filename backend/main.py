@@ -14,7 +14,11 @@ from backend.services.candidate_retrieval import retrieve_candidate_chunks
 from backend.services.candidate_rag import answer_candidate_question
 from backend.schemas.interview import InterviewQuestionSet
 from backend.services.interview_questions import generate_interview_questions
+from backend.schemas.interview_report import InterviewReport
 
+from backend.services.interview_report import (
+    generate_interview_report,
+)
 from backend.schemas.interview import (
     InterviewQuestion,
     NextInterviewQuestionRequest,
@@ -774,5 +778,82 @@ def evaluate_interview(
             detail=(
                 "An error occurred while evaluating "
                 "the interview answer."
+            ),
+        ) from error
+
+@app.post(
+    "/interview/report/{candidate_id}/{job_id}",
+    response_model=InterviewReport,
+)
+def interview_report(
+    candidate_id: int,
+    job_id: int,
+    history: list[dict],
+    evaluations: list[dict],
+    db: Session = Depends(get_db),
+):
+    candidate = db.get(
+        CandidateProfileDB,
+        candidate_id,
+    )
+
+    if candidate is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Candidate profile not found.",
+        )
+
+    job = db.get(
+        JobDB,
+        job_id,
+    )
+
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found.",
+        )
+
+    if len(history) != len(evaluations):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Number of interview turns and evaluations "
+                "must match."
+            ),
+        )
+
+    if not history:
+        raise HTTPException(
+            status_code=400,
+            detail="Interview history cannot be empty.",
+        )
+
+    try:
+        result = generate_interview_report(
+            candidate=candidate,
+            job=job,
+            history=history,
+            evaluations=evaluations,
+        )
+
+        return result
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    except Exception as error:
+        print(
+            f"Interview report error: {error}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "An error occurred while generating "
+                "the interview report."
             ),
         ) from error
