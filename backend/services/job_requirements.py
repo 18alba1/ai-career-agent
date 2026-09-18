@@ -1,9 +1,11 @@
 import json
 import ollama
+from functools import lru_cache
 from backend.schemas.job_requirements import JobRequirements
 
 MODEL_NAME = "llama3:latest"
 
+@lru_cache(maxsize=128)
 def extract_job_requirements(
     job_description: str,
 ) -> JobRequirements:

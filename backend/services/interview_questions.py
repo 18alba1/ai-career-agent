@@ -17,6 +17,7 @@ def generate_interview_questions(
     job,
     requirements,
     number_of_questions: int = 8,
+    language: str = "en",
 ) -> InterviewQuestionSet:
 
     retrieval_query = (
@@ -71,6 +72,14 @@ def generate_interview_questions(
 
     prompt = f"""
 You are an AI interview preparation assistant.
+
+The interview language is: {language}
+
+Language requirements:
+- If language is "en", generate the interview questions in English.
+- If language is "sv", generate the interview questions in Swedish.
+- The question itself must be written entirely in the selected language.
+- Do not switch languages unless a technical term, company name, product name, or programming language naturally remains in its original form.
 
 Generate interview questions for a candidate interviewing for
 the target job.

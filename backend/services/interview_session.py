@@ -16,8 +16,15 @@ def generate_next_interview_question(
     job,
     requirements,
     history: list,
+    language: str = "en",
 ) -> InterviewQuestion:
 
+    output_language = (
+        "Swedish"
+        if language == "sv"
+        else "English"
+    )
+    
     history_text = "\n\n".join(
         (
             f"Question: {turn.question}\n"
@@ -211,6 +218,30 @@ Use only when supported by an explicitly listed skill.
 job_requirement:
 Use when testing something required/preferred by the job
 that the candidate has not demonstrated.
+
+LANGUAGE REQUIREMENT — HIGH PRIORITY
+
+The selected interview language is: {output_language}
+
+The generated interview question MUST be written in {output_language}.
+
+The question must NOT be written in English when the selected
+language is Swedish.
+
+If the selected language is Swedish:
+- Write the entire question in natural Swedish.
+- Do not translate technical product names or programming languages.
+- "Python", "SQL", "Microsoft Copilot", "Copilot Studio",
+  "Power Automate", "RAG", "LLM", etc. may remain in English.
+- Do not write an English question and rely on translation later.
+
+If the selected language is English:
+- Write the question in natural English.
+
+The "purpose" field should also be written in {output_language}.
+
+The "category" and "basis" fields must remain their required
+canonical values.
 
 general:
 Use for general motivation or questions that do not depend

@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, Form
+from pathlib import Path
 from sqlalchemy.orm import Session
 from backend.database.models import CandidateProfileDB, JobDB
 from backend.schemas.job import JobCreate, JobResponse
@@ -15,7 +16,13 @@ from backend.services.candidate_rag import answer_candidate_question
 from backend.schemas.interview import InterviewQuestionSet
 from backend.services.interview_questions import generate_interview_questions
 from backend.schemas.interview_report import InterviewReport
+from backend.services.speech_to_text import transcribe_audio
+from fastapi.responses import Response
+from fastapi.staticfiles import StaticFiles
 
+from backend.services.text_to_speech import (
+    synthesize_speech,
+)
 from backend.services.interview_report import (
     generate_interview_report,
 )
@@ -49,7 +56,9 @@ from backend.services.candidate_knowledge import (
     save_candidate_embeddings,
 )
 
-from backend.schemas.interview_evaluation import InterviewEvaluation
+from backend.schemas.interview_evaluation import (
+    InterviewEvaluationRequest, InterviewEvaluation
+)
 from backend.services.interview_evaluation import (
     evaluate_interview_answer,
 )
@@ -76,6 +85,11 @@ app = FastAPI(
 def root():
     return {"message": "AI Career Agent API is running!"}
 
+app.mount(
+    "/frontend",
+    StaticFiles(directory="frontend", html=True),
+    name="frontend",
+)
 
 @app.get("/database-test")
 def database_test():
@@ -645,6 +659,7 @@ def next_interview_question(
             job=job,
             requirements=requirements,
             history=request.history,
+            language=request.language,
         )
 
         return result
@@ -675,10 +690,7 @@ def next_interview_question(
 def evaluate_interview(
     candidate_id: int,
     job_id: int,
-    question: str,
-    answer: str,
-    question_category: str,
-    question_basis: str,
+    request: InterviewEvaluationRequest,
     db: Session = Depends(get_db),
 ):
     candidate = db.get(
@@ -703,13 +715,13 @@ def evaluate_interview(
             detail="Job not found.",
         )
 
-    if not question.strip():
+    if not request.question.strip():
         raise HTTPException(
             status_code=400,
             detail="Question cannot be empty.",
         )
 
-    if not answer.strip():
+    if not request.answer.strip():
         raise HTTPException(
             status_code=400,
             detail="Answer cannot be empty.",
@@ -731,7 +743,7 @@ def evaluate_interview(
         candidate_chunks = retrieve_candidate_chunks(
             db=db,
             candidate_id=candidate.id,
-            query=question,
+            query=request.question,
             top_k=4,
             categories=[
                 "experience",
@@ -750,14 +762,14 @@ def evaluate_interview(
         )
 
         result = evaluate_interview_answer(
-            question=question,
-            answer=answer,
+            question=request.question,
+            answer=request.answer,
             candidate=candidate,
             candidate_context=candidate_context,
             job=job,
             requirements=requirements,
-            question_category=question_category,
-            question_basis=question_basis,
+            question_category=request.question_category,
+            question_basis=request.question_basis,
         )
 
         return result
@@ -856,4 +868,78 @@ def interview_report(
                 "An error occurred while generating "
                 "the interview report."
             ),
+        ) from error
+
+@app.post("/transcribe-audio")
+async def transcribe_audio_endpoint(
+    file: UploadFile = File(...),
+    language: str = Form("en"),
+):
+    allowed_types = {
+        "audio/wav": ".wav",
+        "audio/x-wav": ".wav",
+        "audio/webm": ".webm",
+        "audio/webm;codecs=opus": ".webm",
+    }
+
+    content_type = file.content_type or ""
+
+    if content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Only WAV and WebM audio are currently supported."
+            ),
+        )
+
+    audio_bytes = await file.read()
+
+    file_extension = allowed_types[content_type]
+
+    transcript = transcribe_audio(
+        audio_bytes=audio_bytes,
+        file_extension=file_extension,
+        language=language
+    )
+
+    return {
+        "transcript": transcript
+    }
+
+@app.get("/text-to-speech")
+def text_to_speech_endpoint(
+    text: str,
+    language: str = "en",
+):
+    try:
+        audio_bytes = synthesize_speech(
+            text=text,
+            language=language,
+        )
+
+        return Response(
+            content=audio_bytes,
+            media_type="audio/wav",
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    except FileNotFoundError as error:
+        raise HTTPException(
+            status_code=500,
+            detail=str(error),
+        ) from error
+
+    except Exception as error:
+        print(
+            f"Text-to-speech error: {error}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Could not generate speech.",
         ) from error

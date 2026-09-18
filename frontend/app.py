@@ -1064,6 +1064,12 @@ if "interview_question_number" not in st.session_state:
 if "interview_report" not in st.session_state:
     st.session_state.interview_report = None
 
+if "voice_transcript" not in st.session_state:
+    st.session_state.voice_transcript = None
+
+if "voice_audio" not in st.session_state:
+    st.session_state.voice_audio = None
+
 
 # ------------------------------------------------------------
 # START / RESET INTERVIEW
@@ -1119,6 +1125,9 @@ with col1:
 
                     st.session_state.interview_question_number = 1
 
+                    st.session_state.voice_transcript = None
+                    st.session_state.voice_audio = None
+
                     st.rerun()
 
                 else:
@@ -1158,6 +1167,9 @@ with col2:
 
         st.session_state.interview_question_number = 0
 
+        st.session_state.voice_transcript = None
+        st.session_state.voice_audio = None
+
         st.rerun()
 
 
@@ -1189,107 +1201,347 @@ if st.session_state.interview_started:
             f"Category: {question_data['category']}"
         )
 
+
         # ----------------------------------------------------
         # ANSWER INPUT
         # ----------------------------------------------------
 
         if not st.session_state.answer_submitted:
 
-            answer = st.text_area(
-                "Your answer",
-                height=200,
-                key=(
-                    f"interview_answer_"
-                    f"{question_number}"
-                ),
+            st.markdown("### Answer the question")
+
+            input_mode = st.radio(
+                "Choose answer method",
+                [
+                    "Voice",
+                    "Text",
+                ],
+                horizontal=True,
+                key=f"answer_mode_{question_number}",
             )
 
-            if st.button(
-                "Submit Answer",
-                key=(
-                    f"submit_interview_answer_"
-                    f"{question_number}"
-                ),
-            ):
 
-                if not answer.strip():
+            # =================================================
+            # VOICE ANSWER
+            # =================================================
 
-                    st.warning(
-                        "Please provide an answer before continuing."
+            if input_mode == "Voice":
+
+                st.write(
+                    "Record your answer below."
+                )
+
+                audio_value = st.audio_input(
+                    "Record answer",
+                    sample_rate=16000,
+                    key=f"voice_answer_{question_number}",
+                )
+
+                if audio_value:
+
+                    st.audio(
+                        audio_value,
+                        format="audio/wav",
                     )
 
-                else:
-
-                    current_question = (
-                        question_data["question"]
-                    )
-
-                    with st.spinner(
-                        "Evaluating your answer..."
+                    if st.button(
+                        "Transcribe Answer",
+                        key=(
+                            f"transcribe_answer_"
+                            f"{question_number}"
+                        ),
                     ):
 
-                        try:
+                        with st.spinner(
+                            "Transcribing your answer..."
+                        ):
 
-                            response = requests.post(
-                                (
-                                    f"{API_URL}/interview/evaluate/"
-                                    f"{interactive_candidate_id}/"
-                                    f"{interactive_job_id}"
-                                ),
-                                params={
-                                    "question": current_question,
-                                    "answer": answer,
-                                    "question_category": (
-                                        question_data["category"]
-                                    ),
-                                    "question_basis": (
-                                        question_data["basis"]
-                                    ),
-                                },
-                                timeout=300,
-                            )
+                            try:
 
-                            if response.status_code == 200:
-
-                                evaluation = response.json()
-
-                                # Save interview turn
-                                st.session_state.interview_history.append(
-                                    {
-                                        "question": current_question,
-                                        "answer": answer,
-                                        "category": question_data["category"],
-                                        "basis": question_data["basis"],
-                                    }
+                                response = requests.post(
+                                    f"{API_URL}/transcribe-audio",
+                                    files={
+                                        "file": (
+                                            "answer.wav",
+                                            audio_value.getvalue(),
+                                            "audio/wav",
+                                        )
+                                    },
+                                    timeout=300,
                                 )
 
-                                # Save evaluation
-                                st.session_state.interview_evaluations.append(
-                                    evaluation
-                                )
+                                if response.status_code == 200:
 
-                                # Store current evaluation
-                                st.session_state.current_interview_evaluation = (
-                                    evaluation
-                                )
+                                    result = response.json()
 
-                                # Lock current question
-                                st.session_state.answer_submitted = True
+                                    transcript = (
+                                        result["transcript"]
+                                    )
 
-                                st.rerun()
+                                    st.session_state.voice_transcript = (
+                                        transcript
+                                    )
 
-                            else:
+                                    st.session_state.voice_audio = (
+                                        audio_value.getvalue()
+                                    )
+
+                                    st.success(
+                                        "Answer transcribed successfully."
+                                    )
+
+                                    st.rerun()
+
+                                else:
+
+                                    st.error(
+                                        f"Error {response.status_code}: "
+                                        f"{response.text}"
+                                    )
+
+                            except requests.exceptions.RequestException as error:
 
                                 st.error(
-                                    f"Error {response.status_code}: "
-                                    f"{response.text}"
+                                    "Could not connect to the "
+                                    f"backend: {error}"
                                 )
 
-                        except requests.exceptions.RequestException as error:
 
-                            st.error(
-                                f"Could not connect to the backend: {error}"
+                # --------------------------------------------
+                # SHOW TRANSCRIPT
+                # --------------------------------------------
+
+                if st.session_state.voice_transcript:
+
+                    st.subheader(
+                        "Transcript"
+                    )
+
+                    st.write(
+                        st.session_state.voice_transcript
+                    )
+
+                    st.caption(
+                        "Review the transcript before submitting "
+                        "your answer."
+                    )
+
+                    if st.button(
+                        "Submit Voice Answer",
+                        key=(
+                            f"submit_voice_answer_"
+                            f"{question_number}"
+                        ),
+                    ):
+
+                        answer = (
+                            st.session_state.voice_transcript
+                        )
+
+                        if not answer.strip():
+
+                            st.warning(
+                                "The transcription is empty. "
+                                "Please record your answer again."
                             )
+
+                        else:
+
+                            current_question = (
+                                question_data["question"]
+                            )
+
+                            with st.spinner(
+                                "Evaluating your answer..."
+                            ):
+
+                                try:
+
+                                    response = requests.post(
+                                        (
+                                            f"{API_URL}/interview/"
+                                            f"evaluate/"
+                                            f"{interactive_candidate_id}/"
+                                            f"{interactive_job_id}"
+                                        ),
+                                        params={
+                                            "question": current_question,
+                                            "answer": answer,
+                                            "question_category": (
+                                                question_data["category"]
+                                            ),
+                                            "question_basis": (
+                                                question_data["basis"]
+                                            ),
+                                        },
+                                        timeout=300,
+                                    )
+
+                                    if response.status_code == 200:
+
+                                        evaluation = (
+                                            response.json()
+                                        )
+
+                                        st.session_state.interview_history.append(
+                                            {
+                                                "question": current_question,
+                                                "answer": answer,
+                                                "category": (
+                                                    question_data["category"]
+                                                ),
+                                                "basis": (
+                                                    question_data["basis"]
+                                                ),
+                                            }
+                                        )
+
+                                        st.session_state.interview_evaluations.append(
+                                            evaluation
+                                        )
+
+                                        st.session_state.current_interview_evaluation = (
+                                            evaluation
+                                        )
+
+                                        st.session_state.answer_submitted = (
+                                            True
+                                        )
+
+                                        st.session_state.voice_transcript = (
+                                            None
+                                        )
+
+                                        st.session_state.voice_audio = (
+                                            None
+                                        )
+
+                                        st.rerun()
+
+                                    else:
+
+                                        st.error(
+                                            f"Error "
+                                            f"{response.status_code}: "
+                                            f"{response.text}"
+                                        )
+
+                                except requests.exceptions.RequestException as error:
+
+                                    st.error(
+                                        "Could not connect to "
+                                        f"the backend: {error}"
+                                    )
+
+
+            # =================================================
+            # TEXT ANSWER
+            # =================================================
+
+            else:
+
+                answer = st.text_area(
+                    "Your answer",
+                    height=200,
+                    key=(
+                        f"interview_answer_"
+                        f"{question_number}"
+                    ),
+                )
+
+                if st.button(
+                    "Submit Text Answer",
+                    key=(
+                        f"submit_text_answer_"
+                        f"{question_number}"
+                    ),
+                ):
+
+                    if not answer.strip():
+
+                        st.warning(
+                            "Please provide an answer before continuing."
+                        )
+
+                    else:
+
+                        current_question = (
+                            question_data["question"]
+                        )
+
+                        with st.spinner(
+                            "Evaluating your answer..."
+                        ):
+
+                            try:
+
+                                response = requests.post(
+                                    (
+                                        f"{API_URL}/interview/"
+                                        f"evaluate/"
+                                        f"{interactive_candidate_id}/"
+                                        f"{interactive_job_id}"
+                                    ),
+                                    params={
+                                        "question": current_question,
+                                        "answer": answer,
+                                        "question_category": (
+                                            question_data["category"]
+                                        ),
+                                        "question_basis": (
+                                            question_data["basis"]
+                                        ),
+                                    },
+                                    timeout=300,
+                                )
+
+                                if response.status_code == 200:
+
+                                    evaluation = (
+                                        response.json()
+                                    )
+
+                                    st.session_state.interview_history.append(
+                                        {
+                                            "question": current_question,
+                                            "answer": answer,
+                                            "category": (
+                                                question_data["category"]
+                                            ),
+                                            "basis": (
+                                                question_data["basis"]
+                                            ),
+                                        }
+                                    )
+
+                                    st.session_state.interview_evaluations.append(
+                                        evaluation
+                                    )
+
+                                    st.session_state.current_interview_evaluation = (
+                                        evaluation
+                                    )
+
+                                    st.session_state.answer_submitted = (
+                                        True
+                                    )
+
+                                    st.rerun()
+
+                                else:
+
+                                    st.error(
+                                        f"Error "
+                                        f"{response.status_code}: "
+                                        f"{response.text}"
+                                    )
+
+                            except requests.exceptions.RequestException as error:
+
+                                st.error(
+                                    "Could not connect to "
+                                    f"the backend: {error}"
+                                )
 
 
         # ----------------------------------------------------
@@ -1372,11 +1624,17 @@ if st.session_state.interview_started:
 
             st.divider()
 
-            # ------------------------------------------------
-            # CONTINUE INTERVIEW
-            # ------------------------------------------------
+
+            # =================================================
+            # CONTINUE / FINISH
+            # =================================================
 
             col1, col2 = st.columns(2)
+
+
+            # -------------------------------------------------
+            # CONTINUE
+            # -------------------------------------------------
 
             with col1:
 
@@ -1396,7 +1654,8 @@ if st.session_state.interview_started:
 
                             response = requests.post(
                                 (
-                                    f"{API_URL}/interview/next/"
+                                    f"{API_URL}/interview/"
+                                    f"next/"
                                     f"{interactive_candidate_id}/"
                                     f"{interactive_job_id}"
                                 ),
@@ -1410,7 +1669,9 @@ if st.session_state.interview_started:
 
                             if response.status_code == 200:
 
-                                next_question = response.json()
+                                next_question = (
+                                    response.json()
+                                )
 
                                 st.session_state.current_interview_question = (
                                     next_question
@@ -1420,7 +1681,17 @@ if st.session_state.interview_started:
                                     None
                                 )
 
-                                st.session_state.answer_submitted = False
+                                st.session_state.answer_submitted = (
+                                    False
+                                )
+
+                                st.session_state.voice_transcript = (
+                                    None
+                                )
+
+                                st.session_state.voice_audio = (
+                                    None
+                                )
 
                                 st.session_state.interview_question_number += 1
 
@@ -1429,19 +1700,22 @@ if st.session_state.interview_started:
                             else:
 
                                 st.error(
-                                    f"Error {response.status_code}: "
+                                    f"Error "
+                                    f"{response.status_code}: "
                                     f"{response.text}"
                                 )
 
                         except requests.exceptions.RequestException as error:
 
                             st.error(
-                                f"Could not connect to the backend: {error}"
+                                "Could not connect to "
+                                f"the backend: {error}"
                             )
 
-            # ------------------------------------------------
-            # FINISH INTERVIEW
-            # ------------------------------------------------
+
+            # -------------------------------------------------
+            # FINISH
+            # -------------------------------------------------
 
             with col2:
 
@@ -1461,7 +1735,8 @@ if st.session_state.interview_started:
 
                             response = requests.post(
                                 (
-                                    f"{API_URL}/interview/report/"
+                                    f"{API_URL}/interview/"
+                                    f"report/"
                                     f"{interactive_candidate_id}/"
                                     f"{interactive_job_id}"
                                 ),
@@ -1487,14 +1762,16 @@ if st.session_state.interview_started:
                             else:
 
                                 st.error(
-                                    f"Error {response.status_code}: "
+                                    f"Error "
+                                    f"{response.status_code}: "
                                     f"{response.text}"
                                 )
 
                         except requests.exceptions.RequestException as error:
 
                             st.error(
-                                f"Could not connect to the backend: {error}"
+                                "Could not connect to "
+                                f"the backend: {error}"
                             )
 
 
@@ -1508,7 +1785,9 @@ if st.session_state.interview_report:
 
     st.divider()
 
-    st.header("Final Interview Report")
+    st.header(
+        "Final Interview Report"
+    )
 
     st.metric(
         "Overall Score",
@@ -1541,13 +1820,17 @@ if st.session_state.interview_report:
             f"{report['grounding_score']}/10"
         )
 
-    st.subheader("Summary")
+    st.subheader(
+        "Summary"
+    )
 
     st.write(
         report["summary"]
     )
 
-    st.subheader("Strongest Answers")
+    st.subheader(
+        "Strongest Answers"
+    )
 
     for answer in report["strongest_answers"]:
 
@@ -1555,7 +1838,9 @@ if st.session_state.interview_report:
             f"✅ {answer}"
         )
 
-    st.subheader("Weakest Answers")
+    st.subheader(
+        "Weakest Answers"
+    )
 
     for answer in report["weakest_answers"]:
 
@@ -1563,7 +1848,9 @@ if st.session_state.interview_report:
             f"⚠️ {answer}"
         )
 
-    st.subheader("Recurring Strengths")
+    st.subheader(
+        "Recurring Strengths"
+    )
 
     for strength in report["recurring_strengths"]:
 
@@ -1571,7 +1858,9 @@ if st.session_state.interview_report:
             f"✅ {strength}"
         )
 
-    st.subheader("Recurring Weaknesses")
+    st.subheader(
+        "Recurring Weaknesses"
+    )
 
     for weakness in report["recurring_weaknesses"]:
 
@@ -1579,13 +1868,16 @@ if st.session_state.interview_report:
             f"→ {weakness}"
         )
 
-    st.subheader("Recommendations")
+    st.subheader(
+        "Recommendations"
+    )
 
     for recommendation in report["recommendations"]:
 
         st.write(
             f"💡 {recommendation}"
         )
+
 
 # ------------------------------------------------------------
 # INTERVIEW HISTORY

@@ -1,4 +1,5 @@
 from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -34,4 +35,8 @@ class InterviewTurn(BaseModel):
 
 
 class NextInterviewQuestionRequest(BaseModel):
-    history: list[InterviewTurn] = []
+    history: list[InterviewTurn] = Field(
+        default_factory=list
+    )
+
+    language: Literal["en", "sv"] = "en"

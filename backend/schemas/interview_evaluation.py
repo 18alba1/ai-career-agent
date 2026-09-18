@@ -1,5 +1,11 @@
 from pydantic import BaseModel, Field
 
+class InterviewEvaluationRequest(BaseModel):
+    question: str
+    answer: str
+    question_category: str
+    question_basis: str
+
 
 class InterviewEvaluation(BaseModel):
     overall_score: int = Field(ge=1, le=10)

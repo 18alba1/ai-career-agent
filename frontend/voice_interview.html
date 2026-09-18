@@ -1,0 +1,2116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>AI Career Agent - Voice Interview</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 60px auto;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        #status {
+            margin: 25px 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        #question {
+            font-size: 24px;
+            margin: 30px 0;
+            min-height: 100px;
+        }
+
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+
+        input,
+        select,
+        textarea {
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        input,
+        select {
+            margin-right: 10px;
+            margin-top: 5px;
+        }
+
+        textarea {
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 10px;
+            resize: vertical;
+        }
+
+        label {
+            margin-right: 10px;
+        }
+
+        .settings {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: end;
+            margin-bottom: 20px;
+        }
+
+        .setting {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #answerControls {
+            margin-top: 15px;
+        }
+
+        #answerReview {
+            margin-top: 30px;
+        }
+
+        #answerReviewButtons {
+            margin-top: 10px;
+        }
+
+        #transcriptLabel {
+            display: block;
+            font-weight: bold;
+        }
+
+        #interviewReport {
+            margin-top: 40px;
+            padding: 25px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        #interviewReport h2 {
+            margin-top: 0;
+        }
+
+        #interviewReport h3 {
+            margin-top: 30px;
+        }
+
+        .score {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+
+
+<body>
+
+    <h1>AI Career Agent</h1>
+
+    <p>
+        Voice Interview
+    </p>
+
+
+    <!-- ========================================================= -->
+    <!-- INTERVIEW SETTINGS                                        -->
+    <!-- ========================================================= -->
+
+    <div class="settings">
+
+        <div class="setting">
+
+            <label for="candidateId">
+                Candidate ID
+            </label>
+
+            <input
+                id="candidateId"
+                type="number"
+                value="5"
+            >
+
+        </div>
+
+
+        <div class="setting">
+
+            <label for="jobId">
+                Job ID
+            </label>
+
+            <input
+                id="jobId"
+                type="number"
+                value="2"
+            >
+
+        </div>
+
+
+        <div class="setting">
+
+            <label for="thinkTime">
+                Think time
+            </label>
+
+            <select id="thinkTime">
+
+                <option value="0">
+                    0 seconds
+                </option>
+
+                <option value="5" selected>
+                    5 seconds
+                </option>
+
+                <option value="10">
+                    10 seconds
+                </option>
+
+                <option value="15">
+                    15 seconds
+                </option>
+
+                <option value="30">
+                    30 seconds
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div class="setting">
+
+            <label for="interviewLanguage">
+                Language
+            </label>
+
+            <select id="interviewLanguage">
+
+                <option value="en" selected>
+                    English
+                </option>
+
+                <option value="sv">
+                    Svenska
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div class="setting">
+
+            <label for="answerMode">
+                Answer mode
+            </label>
+
+            <select id="answerMode">
+
+                <option value="silence" selected>
+                    Auto-detect silence
+                </option>
+
+                <option value="button">
+                    Press "End Answer"
+                </option>
+
+            </select>
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================================================= -->
+    <!-- INTERVIEW CONTROLS                                       -->
+    <!-- ========================================================= -->
+
+    <div>
+
+        <button
+            id="startButton"
+        >
+            Start Interview
+        </button>
+
+
+        <button
+            id="endButton"
+            class="hidden"
+        >
+            End Interview
+        </button>
+
+    </div>
+
+
+    <!-- ========================================================= -->
+    <!-- STATUS                                                    -->
+    <!-- ========================================================= -->
+
+    <div id="status">
+        Waiting to start...
+    </div>
+
+
+    <!-- ========================================================= -->
+    <!-- CURRENT QUESTION                                         -->
+    <!-- ========================================================= -->
+
+    <div id="question"></div>
+
+
+    <!-- ========================================================= -->
+    <!-- ANSWER CONTROLS                                          -->
+    <!-- ========================================================= -->
+
+    <div id="answerControls">
+
+        <button
+            id="endAnswerButton"
+            class="hidden"
+        >
+            End Answer
+        </button>
+
+    </div>
+
+
+    <!-- ========================================================= -->
+    <!-- ANSWER REVIEW                                            -->
+    <!-- ========================================================= -->
+
+    <div
+        id="answerReview"
+        class="hidden"
+    >
+
+        <label
+            id="transcriptLabel"
+            for="transcript"
+        >
+            Review your answer
+        </label>
+
+
+        <textarea
+            id="transcript"
+            rows="8"
+        ></textarea>
+
+
+        <div id="answerReviewButtons">
+
+            <button
+                id="confirmAnswerButton"
+            >
+                Use Answer
+            </button>
+
+
+            <button
+                id="recordAgainButton"
+            >
+                Record Again
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================================================= -->
+    <!-- INTERVIEW REPORT                                         -->
+    <!-- ========================================================= -->
+
+    <div
+        id="interviewReport"
+        class="hidden"
+    >
+
+        <h2>
+            Interview Report
+        </h2>
+
+
+        <div id="reportContent"></div>
+
+
+        <button
+            id="newInterviewButton"
+        >
+            Start New Interview
+        </button>
+
+    </div>
+
+
+    <script>
+
+        // ========================================================
+        // STATE
+        // ========================================================
+
+        let candidateId = null;
+        let jobId = null;
+
+        let thinkTime = 5;
+        let interviewLanguage = "en";
+        let answerMode = "silence";
+
+        let currentQuestion = null;
+
+        let history = [];
+
+        let interviewEvaluations = [];
+
+        let mediaRecorder = null;
+
+        let audioChunks = [];
+
+        let audioContext = null;
+
+        let analyser = null;
+
+        let microphoneSource = null;
+
+        let silenceStart = null;
+
+        let recordingStart = null;
+
+        let interviewRunning = false;
+
+
+        // ========================================================
+        // VOICE SETTINGS
+        // ========================================================
+
+        const SILENCE_THRESHOLD = 0.015;
+
+        const SILENCE_DURATION = 1200;
+
+        const MIN_RECORDING_DURATION = 1000;
+
+
+        // ========================================================
+        // ELEMENTS
+        // ========================================================
+
+        const statusElement =
+            document.getElementById(
+                "status"
+            );
+
+
+        const questionElement =
+            document.getElementById(
+                "question"
+            );
+
+
+        const answerReview =
+            document.getElementById(
+                "answerReview"
+            );
+
+
+        const transcriptElement =
+            document.getElementById(
+                "transcript"
+            );
+
+
+        const startButton =
+            document.getElementById(
+                "startButton"
+            );
+
+
+        const endButton =
+            document.getElementById(
+                "endButton"
+            );
+
+
+        const endAnswerButton =
+            document.getElementById(
+                "endAnswerButton"
+            );
+
+
+        const confirmAnswerButton =
+            document.getElementById(
+                "confirmAnswerButton"
+            );
+
+
+        const recordAgainButton =
+            document.getElementById(
+                "recordAgainButton"
+            );
+
+
+        const transcriptLabel =
+            document.getElementById(
+                "transcriptLabel"
+            );
+
+
+        const interviewReport =
+            document.getElementById(
+                "interviewReport"
+            );
+
+
+        const reportContent =
+            document.getElementById(
+                "reportContent"
+            );
+
+
+        const newInterviewButton =
+            document.getElementById(
+                "newInterviewButton"
+            );
+
+
+        // ========================================================
+        // EVENT LISTENERS
+        // ========================================================
+
+        startButton.addEventListener(
+            "click",
+            startInterview
+        );
+
+
+        endButton.addEventListener(
+            "click",
+            endInterview
+        );
+
+
+        endAnswerButton.addEventListener(
+            "click",
+            stopRecording
+        );
+
+
+        confirmAnswerButton.addEventListener(
+            "click",
+            confirmEditedAnswer
+        );
+
+
+        recordAgainButton.addEventListener(
+            "click",
+            recordAgain
+        );
+
+
+        newInterviewButton.addEventListener(
+            "click",
+            () => {
+                window.location.reload();
+            }
+        );
+
+
+        // ========================================================
+        // START INTERVIEW
+        // ========================================================
+
+        async function startInterview() {
+
+            candidateId = Number(
+                document.getElementById(
+                    "candidateId"
+                ).value
+            );
+
+
+            jobId = Number(
+                document.getElementById(
+                    "jobId"
+                ).value
+            );
+
+
+            thinkTime = Number(
+                document.getElementById(
+                    "thinkTime"
+                ).value
+            );
+
+
+            interviewLanguage =
+                document.getElementById(
+                    "interviewLanguage"
+                ).value;
+
+
+            answerMode =
+                document.getElementById(
+                    "answerMode"
+                ).value;
+
+
+            if (!candidateId || !jobId) {
+
+                alert(
+                    "Enter a valid candidate ID and job ID."
+                );
+
+                return;
+            }
+
+
+            interviewRunning = true;
+
+
+            history = [];
+
+
+            interviewEvaluations = [];
+
+
+            currentQuestion = null;
+
+
+            answerReview.classList.add(
+                "hidden"
+            );
+
+
+            interviewReport.classList.add(
+                "hidden"
+            );
+
+
+            transcriptElement.value =
+                "";
+
+
+            startButton.classList.add(
+                "hidden"
+            );
+
+
+            endButton.classList.remove(
+                "hidden"
+            );
+
+
+            endAnswerButton.classList.add(
+                "hidden"
+            );
+
+
+            if (
+                interviewLanguage === "sv"
+            ) {
+
+                statusElement.textContent =
+                    "Förbereder intervjun...";
+
+            } else {
+
+                statusElement.textContent =
+                    "Preparing interview...";
+            }
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        `/interview/next/${candidateId}/${jobId}`,
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body: JSON.stringify({
+
+                                history: [],
+
+                                language:
+                                    interviewLanguage
+                            })
+                        }
+                    );
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        await response.text()
+                    );
+                }
+
+
+                currentQuestion =
+                    await response.json();
+
+
+                await speakQuestion();
+
+            } catch (error) {
+
+                console.error(
+                    "Start interview error:",
+                    error
+                );
+
+
+                interviewRunning = false;
+
+
+                statusElement.textContent =
+                    interviewLanguage === "sv"
+                        ? "Kunde inte starta intervjun."
+                        : "Failed to start interview.";
+
+
+                startButton.classList.remove(
+                    "hidden"
+                );
+
+
+                endButton.classList.add(
+                    "hidden"
+                );
+            }
+        }
+
+
+        // ========================================================
+        // AI SPEAKS QUESTION
+        // ========================================================
+
+        async function speakQuestion() {
+
+            if (!interviewRunning) {
+                return;
+            }
+
+
+            statusElement.textContent =
+                interviewLanguage === "sv"
+                    ? "AI pratar..."
+                    : "AI is speaking...";
+
+
+            questionElement.textContent =
+                currentQuestion.question;
+
+
+            const params =
+                new URLSearchParams({
+
+                    text:
+                        currentQuestion.question,
+
+                    language:
+                        interviewLanguage
+                });
+
+
+            const response =
+                await fetch(
+                    `/text-to-speech?${params.toString()}`
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    await response.text()
+                );
+            }
+
+
+            const audioBlob =
+                await response.blob();
+
+
+            const audioUrl =
+                URL.createObjectURL(
+                    audioBlob
+                );
+
+
+            const audio =
+                new Audio(audioUrl);
+
+
+            audio.addEventListener(
+                "ended",
+                async () => {
+
+                    URL.revokeObjectURL(
+                        audioUrl
+                    );
+
+
+                    if (!interviewRunning) {
+                        return;
+                    }
+
+
+                    await waitForThinkTime();
+
+
+                    if (!interviewRunning) {
+                        return;
+                    }
+
+
+                    await startListening();
+                }
+            );
+
+
+            try {
+
+                await audio.play();
+
+            } catch (error) {
+
+                console.error(
+                    "Audio playback failed:",
+                    error
+                );
+
+
+                statusElement.textContent =
+                    interviewLanguage === "sv"
+                        ? "Kunde inte spela upp frågan."
+                        : "Could not play the question.";
+            }
+        }
+
+
+        // ========================================================
+        // THINK TIME
+        // ========================================================
+
+        async function waitForThinkTime() {
+
+            if (thinkTime <= 0) {
+                return;
+            }
+
+
+            for (
+                let remaining = thinkTime;
+                remaining > 0;
+                remaining--
+            ) {
+
+                if (!interviewRunning) {
+                    return;
+                }
+
+
+                if (
+                    interviewLanguage ===
+                    "sv"
+                ) {
+
+                    statusElement.textContent =
+                        `Betänketid: ${remaining}s`;
+
+                } else {
+
+                    statusElement.textContent =
+                        `Think time: ${remaining}s`;
+                }
+
+
+                await new Promise(
+                    resolve =>
+                        setTimeout(
+                            resolve,
+                            1000
+                        )
+                );
+            }
+        }
+
+
+        // ========================================================
+        // START LISTENING
+        // ========================================================
+
+        async function startListening() {
+
+            if (!interviewRunning) {
+                return;
+            }
+
+
+            answerReview.classList.add(
+                "hidden"
+            );
+
+
+            transcriptElement.value =
+                "";
+
+
+            if (
+                interviewLanguage ===
+                "sv"
+            ) {
+
+                statusElement.textContent =
+                    "Lyssnar...";
+
+            } else {
+
+                statusElement.textContent =
+                    "Listening...";
+            }
+
+
+            if (
+                answerMode ===
+                "button"
+            ) {
+
+                endAnswerButton.classList.remove(
+                    "hidden"
+                );
+
+            } else {
+
+                endAnswerButton.classList.add(
+                    "hidden"
+                );
+            }
+
+
+            try {
+
+                const stream =
+                    await navigator.mediaDevices.getUserMedia(
+                        {
+                            audio: true
+                        }
+                    );
+
+
+                audioChunks = [];
+
+
+                mediaRecorder =
+                    new MediaRecorder(
+                        stream
+                    );
+
+
+                mediaRecorder.ondataavailable =
+                    event => {
+
+                        if (
+                            event.data.size > 0
+                        ) {
+
+                            audioChunks.push(
+                                event.data
+                            );
+                        }
+                    };
+
+
+                mediaRecorder.onstop =
+                    async () => {
+
+                        stream
+                            .getTracks()
+                            .forEach(
+                                track =>
+                                    track.stop()
+                            );
+
+
+                        if (audioContext) {
+
+                            try {
+
+                                await audioContext.close();
+
+                            } catch (
+                                error
+                            ) {
+
+                                console.error(
+                                    error
+                                );
+                            }
+
+
+                            audioContext = null;
+
+                            analyser = null;
+
+                            microphoneSource = null;
+                        }
+
+
+                        endAnswerButton.classList.add(
+                            "hidden"
+                        );
+
+
+                        await processRecording();
+                    };
+
+
+                mediaRecorder.start();
+
+
+                recordingStart =
+                    Date.now();
+
+
+                if (
+                    answerMode ===
+                    "silence"
+                ) {
+
+                    setupSilenceDetection(
+                        stream
+                    );
+
+                } else {
+
+                    silenceStart = null;
+                }
+
+            } catch (error) {
+
+                console.error(
+                    "Microphone error:",
+                    error
+                );
+
+
+                statusElement.textContent =
+                    interviewLanguage === "sv"
+                        ? "Kunde inte komma åt mikrofonen."
+                        : "Could not access microphone.";
+            }
+        }
+
+
+        // ========================================================
+        // SILENCE DETECTION
+        // ========================================================
+
+        function setupSilenceDetection(
+            stream
+        ) {
+
+            audioContext =
+                new AudioContext();
+
+
+            analyser =
+                audioContext.createAnalyser();
+
+
+            analyser.fftSize = 2048;
+
+
+            microphoneSource =
+                audioContext.createMediaStreamSource(
+                    stream
+                );
+
+
+            microphoneSource.connect(
+                analyser
+            );
+
+
+            silenceStart = null;
+
+
+            detectSilence();
+        }
+
+
+        function detectSilence() {
+
+            if (
+                !interviewRunning ||
+                !mediaRecorder ||
+                mediaRecorder.state !==
+                    "recording"
+            ) {
+
+                return;
+            }
+
+
+            if (
+                answerMode !==
+                "silence"
+            ) {
+
+                return;
+            }
+
+
+            const data =
+                new Uint8Array(
+                    analyser.fftSize
+                );
+
+
+            analyser.getByteTimeDomainData(
+                data
+            );
+
+
+            let sum = 0;
+
+
+            for (
+                let i = 0;
+                i < data.length;
+                i++
+            ) {
+
+                const normalized =
+                    (data[i] - 128) /
+                    128;
+
+
+                sum +=
+                    normalized *
+                    normalized;
+            }
+
+
+            const rms =
+                Math.sqrt(
+                    sum / data.length
+                );
+
+
+            const now =
+                Date.now();
+
+
+            const recordingDuration =
+                now -
+                recordingStart;
+
+
+            if (
+                rms <
+                    SILENCE_THRESHOLD &&
+                recordingDuration >
+                    MIN_RECORDING_DURATION
+            ) {
+
+                if (
+                    silenceStart ===
+                    null
+                ) {
+
+                    silenceStart = now;
+                }
+
+
+                if (
+                    now -
+                        silenceStart >=
+                    SILENCE_DURATION
+                ) {
+
+                    stopRecording();
+
+                    return;
+                }
+
+            } else {
+
+                silenceStart = null;
+            }
+
+
+            requestAnimationFrame(
+                detectSilence
+            );
+        }
+
+
+        // ========================================================
+        // STOP RECORDING
+        // ========================================================
+
+        function stopRecording() {
+
+            if (
+                mediaRecorder &&
+                mediaRecorder.state ===
+                    "recording"
+            ) {
+
+                if (
+                    interviewLanguage ===
+                    "sv"
+                ) {
+
+                    statusElement.textContent =
+                        "Bearbetar ditt svar...";
+
+                } else {
+
+                    statusElement.textContent =
+                        "Processing your answer...";
+                }
+
+
+                endAnswerButton.classList.add(
+                    "hidden"
+                );
+
+
+                mediaRecorder.stop();
+            }
+        }
+
+
+        // ========================================================
+        // TRANSCRIBE RECORDING
+        // ========================================================
+
+        async function processRecording() {
+
+            if (
+                !audioChunks.length
+            ) {
+
+                showAnswerReview("");
+
+                return;
+            }
+
+
+            const audioBlob =
+                new Blob(
+                    audioChunks,
+                    {
+                        type:
+                            "audio/webm"
+                    }
+                );
+
+
+            const formData =
+                new FormData();
+
+
+            formData.append(
+                "file",
+                audioBlob,
+                "answer.webm"
+            );
+
+
+            formData.append(
+                "language",
+                interviewLanguage
+            );
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        "/transcribe-audio",
+                        {
+                            method: "POST",
+
+                            body:
+                                formData
+                        }
+                    );
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        await response.text()
+                    );
+                }
+
+
+                const data =
+                    await response.json();
+
+
+                const transcript =
+                    data.transcript ||
+                    "";
+
+
+                showAnswerReview(
+                    transcript
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Transcription error:",
+                    error
+                );
+
+
+                statusElement.textContent =
+                    interviewLanguage === "sv"
+                        ? "Kunde inte transkribera svaret."
+                        : "Failed to transcribe answer.";
+
+
+                await recordAgain();
+            }
+        }
+
+
+        // ========================================================
+        // SHOW TRANSCRIPT FOR REVIEW
+        // ========================================================
+
+        function showAnswerReview(
+            transcript
+        ) {
+
+            transcriptElement.value =
+                transcript;
+
+
+            answerReview.classList.remove(
+                "hidden"
+            );
+
+
+            endAnswerButton.classList.add(
+                "hidden"
+            );
+
+
+            if (
+                interviewLanguage ===
+                "sv"
+            ) {
+
+                statusElement.textContent =
+                    "Granska ditt svar innan du fortsätter.";
+
+
+                transcriptLabel.textContent =
+                    "Granska ditt svar";
+
+
+                confirmAnswerButton.textContent =
+                    "Använd svar";
+
+
+                recordAgainButton.textContent =
+                    "Spela in igen";
+
+            } else {
+
+                statusElement.textContent =
+                    "Review your answer before continuing.";
+
+
+                transcriptLabel.textContent =
+                    "Review your answer";
+
+
+                confirmAnswerButton.textContent =
+                    "Use Answer";
+
+
+                recordAgainButton.textContent =
+                    "Record Again";
+            }
+
+
+            transcriptElement.focus();
+        }
+
+
+        // ========================================================
+        // CONFIRM EDITED ANSWER
+        // ========================================================
+
+        async function confirmEditedAnswer() {
+
+            const correctedAnswer =
+                transcriptElement.value.trim();
+
+
+            if (!correctedAnswer) {
+
+                if (
+                    interviewLanguage ===
+                    "sv"
+                ) {
+
+                    statusElement.textContent =
+                        "Skriv eller spela in ett svar innan du fortsätter.";
+
+                } else {
+
+                    statusElement.textContent =
+                        "Please enter an answer before continuing.";
+                }
+
+
+                return;
+            }
+
+
+            answerReview.classList.add(
+                "hidden"
+            );
+
+
+            if (
+                interviewLanguage ===
+                "sv"
+            ) {
+
+                statusElement.textContent =
+                    "Bearbetar ditt svar...";
+
+            } else {
+
+                statusElement.textContent =
+                    "Processing your answer...";
+            }
+
+
+            await submitAnswer(
+                correctedAnswer
+            );
+        }
+
+
+        // ========================================================
+        // RECORD ANSWER AGAIN
+        // ========================================================
+
+        async function recordAgain() {
+
+            answerReview.classList.add(
+                "hidden"
+            );
+
+
+            transcriptElement.value =
+                "";
+
+
+            await startListening();
+        }
+
+
+        // ========================================================
+        // SUBMIT / EVALUATE ANSWER
+        // ========================================================
+
+        async function submitAnswer(
+            answer
+        ) {
+
+            /*
+             * Store the confirmed or edited
+             * answer in interview history.
+             */
+
+            history.push({
+
+                question:
+                    currentQuestion.question,
+
+                answer:
+                    answer,
+
+                category:
+                    currentQuestion.category,
+
+                basis:
+                    currentQuestion.basis
+            });
+
+
+            /*
+             * Evaluate the answer silently.
+             */
+
+            try {
+
+                const evaluationResponse =
+                    await fetch(
+                        `/interview/evaluate/${candidateId}/${jobId}`,
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body: JSON.stringify({
+
+                                question:
+                                    currentQuestion.question,
+
+                                answer:
+                                    answer,
+
+                                question_category:
+                                    currentQuestion.category,
+
+                                question_basis:
+                                    currentQuestion.basis
+                            })
+                        }
+                    );
+
+
+                if (
+                    !evaluationResponse.ok
+                ) {
+
+                    console.error(
+                        "Evaluation failed:",
+                        await evaluationResponse.text()
+                    );
+
+                } else {
+
+                    const evaluation =
+                        await evaluationResponse.json();
+
+
+                    interviewEvaluations.push(
+                        evaluation
+                    );
+                }
+
+            } catch (error) {
+
+                /*
+                 * Evaluation failure should
+                 * not stop the interview.
+                 */
+
+                console.error(
+                    "Evaluation error:",
+                    error
+                );
+            }
+
+
+            if (!interviewRunning) {
+                return;
+            }
+
+
+            if (
+                interviewLanguage ===
+                "sv"
+            ) {
+
+                statusElement.textContent =
+                    "Förbereder nästa fråga...";
+
+            } else {
+
+                statusElement.textContent =
+                    "Preparing next question...";
+            }
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        `/interview/next/${candidateId}/${jobId}`,
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body: JSON.stringify({
+
+                                history:
+                                    history,
+
+                                language:
+                                    interviewLanguage
+                            })
+                        }
+                    );
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        await response.text()
+                    );
+                }
+
+
+                currentQuestion =
+                    await response.json();
+
+
+                await speakQuestion();
+
+            } catch (error) {
+
+                console.error(
+                    "Next question error:",
+                    error
+                );
+
+
+                statusElement.textContent =
+                    interviewLanguage ===
+                    "sv"
+                        ? "Kunde inte generera nästa fråga."
+                        : "Failed to generate next question.";
+            }
+        }
+
+
+        // ========================================================
+        // END INTERVIEW
+        // ========================================================
+
+        async function endInterview() {
+
+            /*
+             * Do not end the interview while
+             * the candidate is still recording.
+             */
+
+            if (
+                mediaRecorder &&
+                mediaRecorder.state ===
+                    "recording"
+            ) {
+
+                statusElement.textContent =
+                    interviewLanguage ===
+                    "sv"
+                        ? "Avsluta ditt svar innan du avslutar intervjun."
+                        : "Finish your current answer before ending the interview.";
+
+                return;
+            }
+
+
+            /*
+             * Do not end while the transcript
+             * is waiting for confirmation.
+             */
+
+            if (
+                !answerReview.classList.contains(
+                    "hidden"
+                )
+            ) {
+
+                statusElement.textContent =
+                    interviewLanguage ===
+                    "sv"
+                        ? "Bekräfta eller spela in ditt svar igen innan du avslutar."
+                        : "Confirm or record your answer again before ending the interview.";
+
+                return;
+            }
+
+
+            interviewRunning = false;
+
+
+            if (audioContext) {
+
+                try {
+
+                    await audioContext.close();
+
+                } catch (error) {
+
+                    console.error(
+                        error
+                    );
+                }
+
+
+                audioContext = null;
+            }
+
+
+            endAnswerButton.classList.add(
+                "hidden"
+            );
+
+
+            endButton.classList.add(
+                "hidden"
+            );
+
+
+            if (
+                interviewLanguage ===
+                "sv"
+            ) {
+
+                statusElement.textContent =
+                    "Genererar intervjurapport...";
+
+            } else {
+
+                statusElement.textContent =
+                    "Generating interview report...";
+            }
+
+
+            await generateInterviewReport();
+        }
+
+
+        // ========================================================
+        // GENERATE FINAL REPORT
+        // ========================================================
+
+        async function generateInterviewReport() {
+
+            /*
+             * No completed answers.
+             */
+
+            if (
+                history.length === 0 ||
+                interviewEvaluations.length === 0
+            ) {
+
+                reportContent.innerHTML = `
+                    <p>
+                        ${
+                            interviewLanguage === "sv"
+                                ? "Det finns inga slutförda intervjusvar att rapportera."
+                                : "No completed interview answers were found."
+                        }
+                    </p>
+                `;
+
+
+                interviewReport.classList.remove(
+                    "hidden"
+                );
+
+
+                statusElement.textContent =
+                    interviewLanguage === "sv"
+                        ? "Intervjun avslutad."
+                        : "Interview ended.";
+
+
+                return;
+            }
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        `/interview/report/${candidateId}/${jobId}`,
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body: JSON.stringify({
+
+                                history:
+                                    history,
+
+                                evaluations:
+                                    interviewEvaluations
+                            })
+                        }
+                    );
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        await response.text()
+                    );
+                }
+
+
+                const report =
+                    await response.json();
+
+
+                showInterviewReport(
+                    report
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Report generation error:",
+                    error
+                );
+
+
+                reportContent.innerHTML = `
+                    <p>
+                        ${
+                            interviewLanguage === "sv"
+                                ? "Kunde inte generera intervjurapporten."
+                                : "Failed to generate the interview report."
+                        }
+                    </p>
+
+                    <p>
+                        ${escapeHtml(error.message)}
+                    </p>
+                `;
+
+
+                interviewReport.classList.remove(
+                    "hidden"
+                );
+
+
+                statusElement.textContent =
+                    interviewLanguage === "sv"
+                        ? "Kunde inte generera rapporten."
+                        : "Failed to generate interview report.";
+            }
+        }
+
+
+        // ========================================================
+        // DISPLAY REPORT
+        // ========================================================
+
+        function showInterviewReport(
+            report
+        ) {
+
+            const strongestAnswers =
+                (
+                    report.strongest_answers ||
+                    []
+                )
+                    .map(
+                        answer =>
+                            `<li>${escapeHtml(answer)}</li>`
+                    )
+                    .join("");
+
+
+            const weakestAnswers =
+                (
+                    report.weakest_answers ||
+                    []
+                )
+                    .map(
+                        answer =>
+                            `<li>${escapeHtml(answer)}</li>`
+                    )
+                    .join("");
+
+
+            const recurringStrengths =
+                (
+                    report.recurring_strengths ||
+                    []
+                )
+                    .map(
+                        item =>
+                            `<li>${escapeHtml(item)}</li>`
+                    )
+                    .join("");
+
+
+            const recurringWeaknesses =
+                (
+                    report.recurring_weaknesses ||
+                    []
+                )
+                    .map(
+                        item =>
+                            `<li>${escapeHtml(item)}</li>`
+                    )
+                    .join("");
+
+
+            const recommendations =
+                (
+                    report.recommendations ||
+                    []
+                )
+                    .map(
+                        item =>
+                            `<li>${escapeHtml(item)}</li>`
+                    )
+                    .join("");
+
+
+            const labels =
+                interviewLanguage === "sv"
+                    ? {
+                        scores: "Poäng",
+                        overall: "Övergripande",
+                        technical: "Teknisk",
+                        behavioral: "Beteende",
+                        communication: "Kommunikation",
+                        grounding: "Förankring",
+                        summary: "Sammanfattning",
+                        strongest: "Starkaste svar",
+                        weakest: "Svagaste svar",
+                        strengths: "Återkommande styrkor",
+                        weaknesses: "Återkommande svagheter",
+                        recommendations: "Rekommendationer"
+                    }
+                    : {
+                        scores: "Scores",
+                        overall: "Overall",
+                        technical: "Technical",
+                        behavioral: "Behavioral",
+                        communication: "Communication",
+                        grounding: "Grounding",
+                        summary: "Summary",
+                        strongest: "Strongest Answers",
+                        weakest: "Weakest Answers",
+                        strengths: "Recurring Strengths",
+                        weaknesses: "Recurring Weaknesses",
+                        recommendations: "Recommendations"
+                    };
+
+
+            reportContent.innerHTML = `
+
+                <h3>
+                    ${labels.scores}
+                </h3>
+
+
+                <div class="score">
+                    <strong>
+                        ${labels.overall}:
+                    </strong>
+                    ${report.overall_score}/10
+                </div>
+
+
+                <div class="score">
+                    <strong>
+                        ${labels.technical}:
+                    </strong>
+                    ${report.technical_score}/10
+                </div>
+
+
+                <div class="score">
+                    <strong>
+                        ${labels.behavioral}:
+                    </strong>
+                    ${report.behavioral_score}/10
+                </div>
+
+
+                <div class="score">
+                    <strong>
+                        ${labels.communication}:
+                    </strong>
+                    ${report.communication_score}/10
+                </div>
+
+
+                <div class="score">
+                    <strong>
+                        ${labels.grounding}:
+                    </strong>
+                    ${report.grounding_score}/10
+                </div>
+
+
+                <h3>
+                    ${labels.summary}
+                </h3>
+
+                <p>
+                    ${escapeHtml(
+                        report.summary || ""
+                    )}
+                </p>
+
+
+                <h3>
+                    ${labels.strongest}
+                </h3>
+
+                <ul>
+                    ${
+                        strongestAnswers ||
+                        "<li>-</li>"
+                    }
+                </ul>
+
+
+                <h3>
+                    ${labels.weakest}
+                </h3>
+
+                <ul>
+                    ${
+                        weakestAnswers ||
+                        "<li>-</li>"
+                    }
+                </ul>
+
+
+                <h3>
+                    ${labels.strengths}
+                </h3>
+
+                <ul>
+                    ${
+                        recurringStrengths ||
+                        "<li>-</li>"
+                    }
+                </ul>
+
+
+                <h3>
+                    ${labels.weaknesses}
+                </h3>
+
+                <ul>
+                    ${
+                        recurringWeaknesses ||
+                        "<li>-</li>"
+                    }
+                </ul>
+
+
+                <h3>
+                    ${labels.recommendations}
+                </h3>
+
+                <ul>
+                    ${
+                        recommendations ||
+                        "<li>-</li>"
+                    }
+                </ul>
+            `;
+
+
+            interviewReport.classList.remove(
+                "hidden"
+            );
+
+
+            if (
+                interviewLanguage ===
+                "sv"
+            ) {
+
+                statusElement.textContent =
+                    "Intervjun avslutad.";
+
+            } else {
+
+                statusElement.textContent =
+                    "Interview completed.";
+            }
+        }
+
+
+        // ========================================================
+        // HTML ESCAPING
+        // ========================================================
+
+        function escapeHtml(
+            value
+        ) {
+
+            return String(value)
+                .replaceAll(
+                    "&",
+                    "&amp;"
+                )
+                .replaceAll(
+                    "<",
+                    "&lt;"
+                )
+                .replaceAll(
+                    ">",
+                    "&gt;"
+                )
+                .replaceAll(
+                    '"',
+                    "&quot;"
+                )
+                .replaceAll(
+                    "'",
+                    "&#039;"
+                );
+        }
+
+    </script>
+
+</body>
+</html>
