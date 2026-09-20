@@ -14,7 +14,7 @@ https://github.com/user-attachments/assets/5b551724-923e-471e-a4a3-b902b8048254
 
 ### Candidate Profile
 
-Upload a CV and automatically create a structured candidate profile containing:
+Upload a CV and automatically create a structured candidate profile using AI containing:
 
 - Summary
 - Skills
@@ -37,7 +37,7 @@ Each job can be used throughout the application workflow.
 
 ### Job Requirements
 
-The system extracts structured requirements from a job description, including:
+The system extracts structured requirements from a job description using AI, including:
 
 - Technical skills
 - Soft skills
@@ -49,7 +49,7 @@ Requirements are classified as required or preferred.
 
 ---
 
-### Job Fit Analysis
+### AI/ML Job Fit Analysis
 
 Compare a candidate against a specific job using both exact matching and semantic similarity.
 
@@ -73,7 +73,7 @@ Languages
 
 ---
 
-### CV Tailoring
+### AI CV Tailoring
 
 Generate a job-specific version of the candidate's CV based on:
 
@@ -85,7 +85,7 @@ The generated CV can be reviewed in the application, copied, or downloaded as a 
 
 ---
 
-### Cover Letter Generation
+### AI Cover Letter Generation
 
 Generate a job-specific cover letter based on the selected candidate and job.
 
@@ -100,7 +100,7 @@ The cover letter can be copied or downloaded as a PDF.
 
 ---
 
-### Career Assistant
+### AI Career Assistant
 
 Career Assistant is a grounded conversational interface over the candidate's own profile.
 
