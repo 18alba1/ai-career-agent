@@ -6,9 +6,9 @@ import type {
   InterviewReport,
   InterviewReportRequest,
   TranscribeResponse,
-  CandidateListItem,
   JobListItem,
 } from "../types/interview";
+import type { CandidateListItem } from "../types/candidate";
 
 async function parseError(response: Response): Promise<string> {
   try {

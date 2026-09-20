@@ -2,12 +2,6 @@ export type InterviewLanguage = "en" | "sv";
 export type AnswerMode = "silence" | "button";
 export type ThinkTime = 0 | 5 | 10 | 15 | 30;
 
-export interface CandidateListItem {
-  id: number;
-  name: string;
-  summary: string | null;
-}
-
 export interface JobListItem {
   id: number;
   title: string;

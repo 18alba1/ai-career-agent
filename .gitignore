@@ -216,3 +216,47 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+.envrc
+
+# Secrets / credentials
+*.pem
+*.key
+*.p12
+*.pfx
+credentials/
+secrets/
+credentials*.json
+service-account*.json
+
+# Local databases / database exports
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.backup
+
+# User-generated files / local data
+uploads/
+data/
+logs/
+tmp/
+temp/
+
+# Audio / generated local files
+*.wav
+*.webm
+*.mp3
+*.m4a
+
+# macOS
+.DS_Store
+
+# Node / React
+web/node_modules/
+web/dist/
+web/.vite/
