@@ -31,6 +31,8 @@ type Phase =
   | "review"
   | "submitting"
   | "generating"
+  | "ending"
+  | "reporting"
   | "report"
   | "error";
 
@@ -53,25 +55,96 @@ export function InterviewSession({
   const micKeyRef = useRef(0);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
 
+  // ---- Race-condition guards ----
+
+  /** False once End Interview is pressed — no new cycle may proceed. */
+  const interviewActiveRef = useRef(true);
+  /** True while the ending/reporting sequence is in progress. */
+  const endingRef = useRef(false);
+  /** Ensures POST /interview/report is called at most once. */
+  const reportRequestedRef = useRef(false);
+  /**
+   * Incremented every time End Interview is pressed or a new interview starts.
+   * Each async continuation captures the value at call time and bails out
+   * if it has changed by the time the await resolves.
+   */
+  const sessionIdRef = useRef(0);
+  /** Aborts in-flight fetches (next-question, TTS, evaluate, transcribe). */
+  const abortRef = useRef<AbortController | null>(null);
+
   const { candidateId, jobId, language, thinkTime, answerMode } = config;
 
-  // ---- Helpers ----
+  // ---- Abort / cleanup helpers ----
+
+  const abortInFlight = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+  }, []);
+
+  const stopAudio = useCallback(() => {
+    if (audioElRef.current) {
+      try {
+        audioElRef.current.pause();
+      } catch {
+        // ignore
+      }
+      audioElRef.current = null;
+    }
+  }, []);
+
+  /** Check whether this async cycle is still the current one. */
+  const isCurrentCycle = useCallback(() => {
+    return interviewActiveRef.current && !endingRef.current;
+  }, []);
+
+  // ---- TTS ----
 
   const tts = useCallback(
-    async (text: string): Promise<void> => {
-      const url = await fetchSpeechAudio(text, language);
-      return new Promise((resolve, reject) => {
+    async (text: string, session: number): Promise<void> => {
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      let url: string;
+      try {
+        url = await fetchSpeechAudio(text, language, controller.signal);
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        // TTS fetch failed — but the interview may still be active
+        return;
+      }
+
+      // Guard: bail if the interview ended while fetching
+      if (session !== sessionIdRef.current || !interviewActiveRef.current) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      return new Promise<void>((resolve) => {
         const audio = new Audio(url);
         audioElRef.current = audio;
-        audio.onended = () => {
+
+        const cleanup = () => {
           URL.revokeObjectURL(url);
+          if (audioElRef.current === audio) {
+            audioElRef.current = null;
+          }
+        };
+
+        audio.onended = () => {
+          cleanup();
           resolve();
         };
         audio.onerror = () => {
-          URL.revokeObjectURL(url);
-          reject(new Error("Audio playback failed"));
+          cleanup();
+          resolve();
         };
-        audio.play().catch(reject);
+
+        audio.play().catch(() => {
+          cleanup();
+          resolve();
+        });
       });
     },
     [language],
@@ -80,13 +153,13 @@ export function InterviewSession({
   // ---- Flow: speak question -> think time -> listen ----
 
   const speakAndContinue = useCallback(
-    async (q: InterviewQuestion) => {
+    async (q: InterviewQuestion, session: number) => {
       setPhase("speaking");
-      try {
-        await tts(q.question);
-      } catch {
-        // If TTS fails, still proceed with text
-      }
+      await tts(q.question, session);
+
+      // Guard: bail if interview ended during TTS
+      if (session !== sessionIdRef.current || !interviewActiveRef.current) return;
+
       if (thinkTime > 0) {
         setPhase("thinktime");
       } else {
@@ -96,20 +169,37 @@ export function InterviewSession({
     [tts, thinkTime],
   );
 
-  const handleThinkComplete = useCallback(() => {
-    setPhase("listening");
-  }, []);
+  const handleThinkComplete = useCallback(
+    (session: number) => {
+      if (session !== sessionIdRef.current || !interviewActiveRef.current) return;
+      setPhase("listening");
+    },
+    [],
+  );
 
   // ---- Recording -> transcribe -> review ----
 
   const handleRecordingComplete = useCallback(
     async (blob: Blob) => {
+      const session = sessionIdRef.current;
+      if (!interviewActiveRef.current) return;
+
       setPhase("processing");
+
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       try {
-        const result = await transcribeAudio(blob, language);
+        const result = await transcribeAudio(blob, language, controller.signal);
+
+        // Guard: bail if interview ended during transcription
+        if (session !== sessionIdRef.current || !interviewActiveRef.current) return;
+
         setTranscript(result.transcript || "");
         setPhase("review");
       } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        if (session !== sessionIdRef.current || !interviewActiveRef.current) return;
         setError(e instanceof Error ? e.message : "Transcription failed");
         setPhase("error");
       }
@@ -118,6 +208,7 @@ export function InterviewSession({
   );
 
   const handleRecordAgain = useCallback(() => {
+    if (!interviewActiveRef.current) return;
     setTranscript("");
     micKeyRef.current += 1;
     setPhase("listening");
@@ -128,6 +219,9 @@ export function InterviewSession({
   const handleConfirmAnswer = useCallback(
     async (answer: string) => {
       if (!question) return;
+      if (!interviewActiveRef.current) return;
+
+      const session = sessionIdRef.current;
 
       const turn: InterviewTurn = {
         question: question.question,
@@ -140,32 +234,66 @@ export function InterviewSession({
 
       // Evaluate silently
       setPhase("submitting");
+
+      const evalController = new AbortController();
+      abortRef.current = evalController;
+
       try {
-        const evaluation = await evaluateAnswer(candidateId, jobId, {
-          question: question.question,
-          answer,
-          question_category: question.category,
-          question_basis: question.basis,
-        });
+        const evaluation = await evaluateAnswer(
+          candidateId,
+          jobId,
+          {
+            question: question.question,
+            answer,
+            question_category: question.category,
+            question_basis: question.basis,
+          },
+          evalController.signal,
+        );
+
+        // Guard: bail if interview ended during evaluation
+        if (session !== sessionIdRef.current || !interviewActiveRef.current) return;
+
         evaluationsRef.current.push(evaluation);
-      } catch {
-        // Evaluation failure should not stop the interview
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        // Evaluation failure should not stop the interview — but
+        // only if the interview is still active.
+        if (session !== sessionIdRef.current || !interviewActiveRef.current) return;
       }
+
+      // Guard: do NOT fetch next question if interview has ended
+      if (session !== sessionIdRef.current || !interviewActiveRef.current) return;
 
       // Fetch next question
       setPhase("generating");
+
+      const nextController = new AbortController();
+      abortRef.current = nextController;
+
       try {
-        const next = await fetchNextQuestion(candidateId, jobId, {
-          history: historyRef.current.map((t) => ({
-            question: t.question,
-            answer: t.answer,
-          })),
-          language,
-        });
+        const next = await fetchNextQuestion(
+          candidateId,
+          jobId,
+          {
+            history: historyRef.current.map((t) => ({
+              question: t.question,
+              answer: t.answer,
+            })),
+            language,
+          },
+          nextController.signal,
+        );
+
+        // Guard: bail if interview ended during fetch
+        if (session !== sessionIdRef.current || !interviewActiveRef.current) return;
+
         setQuestion(next);
         setQuestionNumber((n) => n + 1);
-        await speakAndContinue(next);
+        await speakAndContinue(next, session);
       } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        if (session !== sessionIdRef.current || !interviewActiveRef.current) return;
         setError(e instanceof Error ? e.message : "Failed to generate next question");
         setPhase("error");
       }
@@ -173,36 +301,95 @@ export function InterviewSession({
     [question, candidateId, jobId, language, speakAndContinue],
   );
 
-  // ---- End interview -> report ----
+  // ---- End interview -> report (exactly once) ----
 
   const handleEndInterview = useCallback(async () => {
-    setPhase("generating");
-    try {
-      const rpt = await fetchInterviewReport(candidateId, jobId, {
-        history: historyRef.current,
-        evaluations: evaluationsRef.current,
+    // Guard against double-clicks / repeated calls
+    if (endingRef.current || reportRequestedRef.current) return;
+
+    endingRef.current = true;
+    interviewActiveRef.current = false;
+    sessionIdRef.current += 1;
+    reportRequestedRef.current = true;
+
+    // Abort any in-flight fetches (next-question, TTS, evaluate, transcribe)
+    abortInFlight();
+    // Stop any currently playing TTS audio
+    stopAudio();
+
+    setPhase("ending");
+
+    // Guard: if there are no completed answers, show empty report state
+    if (historyRef.current.length === 0 || evaluationsRef.current.length === 0) {
+      setReport({
+        overall_score: 0,
+        technical_score: 0,
+        behavioral_score: 0,
+        communication_score: 0,
+        grounding_score: 0,
+        strongest_answers: [],
+        weakest_answers: [],
+        recurring_strengths: [],
+        recurring_weaknesses: [],
+        recommendations: [],
+        summary:
+          language === "sv"
+            ? "Det finns inga slutförda intervjusvar att rapportera."
+            : "No completed interview answers were found.",
       });
+      setPhase("report");
+      return;
+    }
+
+    setPhase("reporting");
+
+    try {
+      const rpt = await fetchInterviewReport(
+        candidateId,
+        jobId,
+        {
+          history: historyRef.current,
+          evaluations: evaluationsRef.current,
+        },
+      );
+
+      // Even after the report returns, we don't need to check guards —
+      // this is the terminal state and reportRequestedRef prevents duplicates.
       setReport(rpt);
       setPhase("report");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to generate report");
       setPhase("error");
     }
-  }, [candidateId, jobId]);
+  }, [abortInFlight, stopAudio, candidateId, jobId, language]);
 
   // ---- Start: initial question ----
 
   const startInterview = useCallback(async () => {
+    const session = sessionIdRef.current;
+
     setPhase("loading");
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const q = await fetchNextQuestion(candidateId, jobId, {
-        history: [],
-        language,
-      });
+      const q = await fetchNextQuestion(
+        candidateId,
+        jobId,
+        { history: [], language },
+        controller.signal,
+      );
+
+      // Guard: bail if interview ended during fetch
+      if (session !== sessionIdRef.current || !interviewActiveRef.current) return;
+
       setQuestion(q);
       setQuestionNumber(1);
-      await speakAndContinue(q);
+      await speakAndContinue(q, session);
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      if (session !== sessionIdRef.current || !interviewActiveRef.current) return;
       setError(e instanceof Error ? e.message : "Failed to start interview");
       setPhase("error");
     }
@@ -213,8 +400,20 @@ export function InterviewSession({
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
+    interviewActiveRef.current = true;
+    endingRef.current = false;
+    reportRequestedRef.current = false;
     startInterview();
-  }, [startInterview]);
+
+    // Cleanup on unmount: abort everything
+    return () => {
+      interviewActiveRef.current = false;
+      abortInFlight();
+      stopAudio();
+    };
+  }, [startInterview, abortInFlight, stopAudio]);
+
+  // ---- Derived render state ----
 
   const orbState = (() => {
     switch (phase) {
@@ -227,6 +426,9 @@ export function InterviewSession({
         return "listening" as const;
       case "processing":
       case "submitting":
+        return "processing" as const;
+      case "ending":
+      case "reporting":
         return "processing" as const;
       default:
         return "idle" as const;
@@ -244,6 +446,8 @@ export function InterviewSession({
       case "review": return sv ? "Granska ditt svar" : "Review your answer";
       case "submitting": return sv ? "Utvärderar..." : "Evaluating...";
       case "generating": return sv ? "Förbereder nästa fråga..." : "Preparing next question...";
+      case "ending": return sv ? "Avslutar intervjun..." : "Ending interview...";
+      case "reporting": return sv ? "Genererar intervjurapport..." : "Generating interview report...";
       default: return "";
     }
   })();
@@ -289,8 +493,16 @@ export function InterviewSession({
     );
   }
 
-  const showEndButton =
-    phase !== "listening" && phase !== "review" && phase !== "loading";
+  // End Interview button is disabled during listening/review (recording in
+  // progress or transcript pending) and during the ending/reporting phase.
+  const endButtonDisabled =
+    phase === "listening" ||
+    phase === "review" ||
+    phase === "ending" ||
+    phase === "reporting" ||
+    endingRef.current;
+
+  const showEndButton = phase !== "loading";
   const sv = language === "sv";
 
   return (
@@ -325,15 +537,26 @@ export function InterviewSession({
               width: "8px",
               height: "8px",
               borderRadius: "50%",
-              background: "var(--success)",
+              background:
+                phase === "ending" || phase === "reporting"
+                  ? "var(--warning)"
+                  : "var(--success)",
               animation: "pulse 2s ease-in-out infinite",
             }}
           />
-          {sv ? "Intervju pågår" : "Interview in progress"} · Q{questionNumber}
+          {(phase === "ending" || phase === "reporting")
+            ? (sv ? "Avslutar..." : "Ending...")
+            : (sv ? "Intervju pågår" : "Interview in progress")
+          } · Q{questionNumber}
         </div>
 
         {showEndButton ? (
-          <Button variant="danger" size="sm" onClick={handleEndInterview}>
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={handleEndInterview}
+            disabled={endButtonDisabled}
+          >
             <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
               <X size={14} />
               {sv ? "Avsluta" : "End Interview"}
@@ -388,6 +611,19 @@ export function InterviewSession({
           />
         )}
 
+        {(phase === "ending" || phase === "reporting") && (
+          <div
+            style={{
+              width: "40px",
+              height: "40px",
+              border: "3px solid var(--border-subtle)",
+              borderTopColor: "var(--primary)",
+              borderRadius: "50%",
+              animation: "spin 0.8s linear infinite",
+            }}
+          />
+        )}
+
         {(phase === "speaking" || phase === "thinktime" || phase === "listening" ||
           phase === "processing" || phase === "submitting" || phase === "generating") &&
           question && (
@@ -397,7 +633,7 @@ export function InterviewSession({
         {phase === "thinktime" && (
           <ThinkTimer
             seconds={thinkTime}
-            onComplete={handleThinkComplete}
+            onComplete={() => handleThinkComplete(sessionIdRef.current)}
             language={language}
           />
         )}
