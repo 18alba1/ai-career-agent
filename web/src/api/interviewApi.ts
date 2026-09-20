@@ -6,6 +6,8 @@ import type {
   InterviewReport,
   InterviewReportRequest,
   TranscribeResponse,
+  CandidateListItem,
+  JobListItem,
 } from "../types/interview";
 
 async function parseError(response: Response): Promise<string> {
@@ -15,6 +17,18 @@ async function parseError(response: Response): Promise<string> {
   } catch {
     return `Request failed (${response.status})`;
   }
+}
+
+export async function getCandidates(): Promise<CandidateListItem[]> {
+  const response = await fetch("/candidates");
+  if (!response.ok) throw new Error(await parseError(response));
+  return response.json();
+}
+
+export async function getJobs(): Promise<JobListItem[]> {
+  const response = await fetch("/jobs");
+  if (!response.ok) throw new Error(await parseError(response));
+  return response.json();
 }
 
 export async function fetchNextQuestion(
