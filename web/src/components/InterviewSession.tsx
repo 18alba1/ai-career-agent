@@ -395,19 +395,25 @@ export function InterviewSession({
     }
   }, [candidateId, jobId, language, speakAndContinue]);
 
-  // Start on mount
-  const startedRef = useRef(false);
+  // Start on mount — StrictMode-safe deferred startup.
+  // In StrictMode, React mounts, unmounts, then re-mounts.
+  // The cleanup cancels the deferred startup from the first mount and
+  // invalidates its session, so the second mount's startup is the only
+  // one that actually fires /interview/next.
   useEffect(() => {
-    if (startedRef.current) return;
-    startedRef.current = true;
-    interviewActiveRef.current = true;
-    endingRef.current = false;
-    reportRequestedRef.current = false;
-    startInterview();
+    const timer = window.setTimeout(() => {
+      sessionIdRef.current += 1;
+      interviewActiveRef.current = true;
+      endingRef.current = false;
+      reportRequestedRef.current = false;
+      startInterview();
+    }, 0);
 
-    // Cleanup on unmount: abort everything
     return () => {
+      window.clearTimeout(timer);
       interviewActiveRef.current = false;
+      // Invalidate any async work from the previous effect cycle.
+      sessionIdRef.current += 1;
       abortInFlight();
       stopAudio();
     };
