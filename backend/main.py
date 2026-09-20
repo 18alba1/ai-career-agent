@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from backend.database.models import CandidateProfileDB, JobDB
 from backend.schemas.job import JobCreate, JobResponse
 from backend.database.database import Base, engine, get_db
-from backend.schemas.candidate import CandidateProfile
+from backend.schemas.candidate import CandidateProfile, CandidateListItem
 from backend.services.candidate_profile import create_candidate_profile
 from backend.services.cv_parser import extract_cv_text
 from backend.schemas.matching import JobMatchResponse
@@ -179,6 +179,14 @@ async def upload_cv(
             detail="An error occurred while processing the CV.",
         ) from error
 
+
+@app.get("/candidates", response_model=list[CandidateListItem])
+def get_candidates(
+    db: Session = Depends(get_db),
+):
+    return db.query(CandidateProfileDB).order_by(
+        CandidateProfileDB.id.desc()
+    ).all()
 
 @app.get(
     "/candidate/{candidate_id}",

@@ -19,6 +19,16 @@ class Project(BaseModel):
     technologies: list[str] = Field(default_factory=list)
 
 
+class CandidateListItem(BaseModel):
+    id: int
+    name: str
+    summary: str | None = None
+
+    model_config = {
+        "from_attributes": True,
+    }
+
+
 class CandidateProfile(BaseModel):
     name: str
     summary: str
