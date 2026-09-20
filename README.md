@@ -156,7 +156,8 @@ This allows the interview experience to operate as a voice-based interaction rat
 
 ## Architecture
 
-IMAGE
+<img width="2953" height="1880" alt="mermaid-diagram" src="https://github.com/user-attachments/assets/392382cf-1ac8-4fed-8030-609b295be181" />
+
 
 ---
 
