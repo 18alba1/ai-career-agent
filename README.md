@@ -6,6 +6,8 @@ The project combines a FastAPI backend, React frontend, PostgreSQL with vector s
 
 The goal is to build a practical AI system around a real user workflow rather than a standalone chatbot.
 
+https://github.com/user-attachments/assets/5b551724-923e-471e-a4a3-b902b8048254
+
 ---
 
 ## Features
