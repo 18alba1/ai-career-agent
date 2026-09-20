@@ -9,10 +9,20 @@ export default defineConfig({
       "/interview": "http://127.0.0.1:8000",
       "/transcribe-audio": "http://127.0.0.1:8000",
       "/text-to-speech": "http://127.0.0.1:8000",
+
       "/candidates": "http://127.0.0.1:8000",
-      "/jobs": "http://127.0.0.1:8000",
       "/candidate": "http://127.0.0.1:8000",
+      "/upload-cv": "http://127.0.0.1:8000",
+
+      "/jobs": "http://127.0.0.1:8000",
+      "/job-requirements": "http://127.0.0.1:8000",
+      "/job-fit": "http://127.0.0.1:8000",
+
       "/database-test": "http://127.0.0.1:8000",
+
+      "/tailor-cv": "http://127.0.0.1:8000",
+      "/cover-letter": "http://127.0.0.1:8000",
+      "/candidate-rag": "http://127.0.0.1:8000",
     },
   },
 });

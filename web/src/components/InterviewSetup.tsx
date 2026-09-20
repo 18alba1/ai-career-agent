@@ -18,9 +18,11 @@ import type {
   InterviewLanguage,
   AnswerMode,
   ThinkTime,
-  CandidateListItem,
   JobListItem,
 } from "../types/interview";
+import type {
+  CandidateListItem,
+} from "../types/candidate";
 import { getCandidates, getJobs } from "../api/interviewApi";
 
 export interface InterviewConfig {
